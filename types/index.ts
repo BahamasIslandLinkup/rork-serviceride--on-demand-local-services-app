@@ -133,6 +133,10 @@ export type User = {
   verified: boolean;
   kycStatus?: 'pending' | 'approved' | 'rejected';
   vehicleInfo?: VehicleInfo;
+  bio?: string;
+  businessName?: string;
+  serviceCategories?: string[];
+  serviceRadius?: number;
   createdAt: string;
 };
 

@@ -298,6 +298,23 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, []);
 
+  const updateProfile = useCallback(async (updates: Partial<User>) => {
+    if (!user) throw new Error('No user logged in');
+
+    try {
+      console.log('[Auth] Updating profile:', updates);
+      const updatedUser = { ...user, ...updates };
+      
+      await setDoc(doc(db, 'users', user.id), updates, { merge: true });
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      console.log('[Auth] Profile updated successfully');
+    } catch (error) {
+      console.error('[Auth] Update profile failed:', error);
+      throw error;
+    }
+  }, [user]);
+
   return useMemo(
     () => ({
       user,
@@ -309,9 +326,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       signup,
       logout,
       updateUser,
+      updateProfile,
       switchRole,
       getRememberedEmail,
     }),
-    [user, isLoading, isAuthenticated, login, signup, logout, updateUser, switchRole, getRememberedEmail]
+    [user, isLoading, isAuthenticated, login, signup, logout, updateUser, updateProfile, switchRole, getRememberedEmail]
   );
 });

@@ -171,13 +171,12 @@ export default function ProfileScreen() {
   
   const menuItems = [
     { icon: Briefcase, label: 'Business Dashboard', onPress: () => router.push('/business-dashboard' as any) },
-    { icon: User, label: 'Edit Profile', onPress: () => {} },
+    { icon: User, label: 'Edit Profile', onPress: () => router.push('/settings/edit-profile' as any) },
     { icon: MapPin, label: 'Saved Addresses', onPress: () => setShowAddressModal(true) },
-    { icon: CreditCard, label: 'Payment Methods', onPress: () => {} },
+    { icon: CreditCard, label: 'Payment Methods', onPress: () => router.push('/payment-methods' as any) },
     { icon: Bell, label: 'Notifications', onPress: () => router.push('/settings/notifications' as any) },
-    { icon: Settings, label: 'Firebase Test', onPress: () => router.push('/firebase-test' as any) },
-    { icon: HelpCircle, label: 'Help & Support', onPress: () => {} },
-    { icon: Settings, label: 'Settings', onPress: () => {} },
+    { icon: HelpCircle, label: 'Help & Support', onPress: () => router.push('/settings/support' as any) },
+    { icon: Settings, label: 'Settings', onPress: () => router.push('/settings/account' as any) },
   ];
 
   return (
