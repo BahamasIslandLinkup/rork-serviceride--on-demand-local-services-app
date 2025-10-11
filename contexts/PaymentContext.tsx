@@ -57,13 +57,13 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
   );
 
   const authorizePayment = useCallback(
-    async (bookingId: string, amount: number, tip: number = 0) => {
+    async (params: { bookingId: string; amount: number; paymentMethodId: string; promoCodeId?: string; tip?: number }) => {
       try {
-        const costs = calculateBookingCost(amount, tip);
+        const costs = calculateBookingCost(params.amount, params.tip || 0);
 
         const transaction: Transaction = {
           id: 'txn_' + Date.now(),
-          bookingId,
+          bookingId: params.bookingId,
           amount: costs.total,
           commission: costs.commission,
           platformFee: costs.platformFee,
@@ -173,7 +173,7 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
     }
   }, []);
 
-  const applyPromoCode = useCallback(async (code: string) => {
+  const validatePromoCode = useCallback(async (code: string) => {
     try {
       const mockPromoCodes: PromoCode[] = [
         {
@@ -204,23 +204,26 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
       );
 
       if (!promo) {
-        return { success: false, error: 'Invalid promo code' };
+        return { valid: false, error: 'Invalid promo code' };
       }
 
       if (new Date(promo.expiresAt) < new Date()) {
-        return { success: false, error: 'Promo code expired' };
+        return { valid: false, error: 'Promo code expired' };
       }
 
       if (promo.usageCount >= promo.usageLimit) {
-        return { success: false, error: 'Promo code usage limit reached' };
+        return { valid: false, error: 'Promo code usage limit reached' };
       }
 
-      setAppliedPromo(promo);
-      return { success: true, promo };
+      return { valid: true, promo };
     } catch (error) {
-      console.error('Apply promo code failed:', error);
-      return { success: false, error: 'Failed to apply promo code' };
+      console.error('Validate promo code failed:', error);
+      return { valid: false, error: 'Failed to validate promo code' };
     }
+  }, []);
+
+  const applyPromoCode = useCallback((promo: PromoCode) => {
+    setAppliedPromo(promo);
   }, []);
 
   const removePromoCode = useCallback(() => {
@@ -245,6 +248,7 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
       addPaymentMethod,
       removePaymentMethod,
       setDefaultPaymentMethod,
+      validatePromoCode,
       applyPromoCode,
       removePromoCode,
       PLATFORM_COMMISSION_RATE,
@@ -263,6 +267,7 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
       addPaymentMethod,
       removePaymentMethod,
       setDefaultPaymentMethod,
+      validatePromoCode,
       applyPromoCode,
       removePromoCode,
     ]
