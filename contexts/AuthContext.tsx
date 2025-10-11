@@ -14,10 +14,10 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import type { User } from '@/types';
 
-const AUTH_STORAGE_KEY = '@app_auth';
-const USER_STORAGE_KEY = '@app_user';
-const REMEMBER_ME_KEY = '@app_remember_me';
-const REMEMBER_EMAIL_KEY = '@app_remember_email';
+const AUTH_STORAGE_KEY = 'app_auth';
+const USER_STORAGE_KEY = 'app_user';
+const REMEMBER_ME_KEY = 'app_remember_me';
+const REMEMBER_EMAIL_KEY = 'app_remember_email';
 
 const secureStorage = {
   async setItem(key: string, value: string) {
@@ -281,7 +281,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [user]);
 
-  const getRememberedEmail = async () => {
+  const getRememberedEmail = useCallback(async () => {
     try {
       const [rememberMe, email] = await Promise.all([
         secureStorage.getItem(REMEMBER_ME_KEY),
@@ -296,7 +296,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('[Auth] Failed to get remembered email:', error);
       return null;
     }
-  };
+  }, []);
 
   return useMemo(
     () => ({
@@ -312,6 +312,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       switchRole,
       getRememberedEmail,
     }),
-    [user, isLoading, isAuthenticated, login, signup, logout, updateUser, switchRole]
+    [user, isLoading, isAuthenticated, login, signup, logout, updateUser, switchRole, getRememberedEmail]
   );
 });
