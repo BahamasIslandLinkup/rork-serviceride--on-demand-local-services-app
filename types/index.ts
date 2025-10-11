@@ -51,7 +51,7 @@ export type Booking = {
   clientImage?: string;
   providerId: string;
   providerName: string;
-  providerImage: string;
+  providerImage?: string;
   category: string;
   service: string;
   date: string;

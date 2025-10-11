@@ -41,7 +41,13 @@ export const [BookingProvider, useBooking] = createContextHook(() => {
 
   const createBooking = useCallback(async (bookingData: Omit<Booking, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
+      if (!user) {
+        console.error('[Booking] User not authenticated');
+        return { success: false, error: 'User not authenticated' };
+      }
+
       console.log('[Booking] Creating booking:', bookingData);
+      console.log('[Booking] Current user:', user.id, user.email);
       setIsLoading(true);
 
       const newBooking: Omit<Booking, 'id'> = {
@@ -104,7 +110,7 @@ export const [BookingProvider, useBooking] = createContextHook(() => {
     } finally {
       setIsLoading(false);
     }
-  }, [mockAutoAccept, addNotification]);
+  }, [mockAutoAccept, addNotification, user]);
 
   const acceptBooking = useCallback(async (bookingId: string) => {
     try {
@@ -132,7 +138,7 @@ export const [BookingProvider, useBooking] = createContextHook(() => {
       console.error('[Booking] Failed to accept booking:', error);
       return { success: false, error: 'Failed to accept booking' };
     }
-  }, [bookings, addNotification]);
+  }, [bookings, addNotification, user]);
 
   const declineBooking = useCallback(async (bookingId: string, reason: string) => {
     try {
@@ -165,7 +171,7 @@ export const [BookingProvider, useBooking] = createContextHook(() => {
       console.error('[Booking] Failed to decline booking:', error);
       return { success: false, error: 'Failed to decline booking' };
     }
-  }, [bookings, addNotification]);
+  }, [bookings, addNotification, user]);
 
   const startBooking = useCallback(async (bookingId: string) => {
     try {
@@ -193,7 +199,7 @@ export const [BookingProvider, useBooking] = createContextHook(() => {
       console.error('[Booking] Failed to start booking:', error);
       return { success: false, error: 'Failed to start booking' };
     }
-  }, [bookings, addNotification]);
+  }, [bookings, addNotification, user]);
 
   const completeBooking = useCallback(async (bookingId: string) => {
     try {
@@ -221,7 +227,7 @@ export const [BookingProvider, useBooking] = createContextHook(() => {
       console.error('[Booking] Failed to complete booking:', error);
       return { success: false, error: 'Failed to complete booking' };
     }
-  }, [bookings, addNotification]);
+  }, [bookings, addNotification, user]);
 
   const cancelBooking = useCallback(async (bookingId: string) => {
     try {
@@ -249,7 +255,7 @@ export const [BookingProvider, useBooking] = createContextHook(() => {
       console.error('[Booking] Failed to cancel booking:', error);
       return { success: false, error: 'Failed to cancel booking' };
     }
-  }, [bookings, addNotification]);
+  }, [bookings, addNotification, user]);
 
   const refreshBookings = useCallback(async () => {
     if (!user) return;

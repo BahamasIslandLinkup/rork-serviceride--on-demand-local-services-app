@@ -31,11 +31,15 @@ export async function createBooking(booking: Omit<Booking, 'id'>): Promise<strin
       }
     });
 
+    console.log('[Firestore] Creating booking with data:', JSON.stringify(cleanedBooking, null, 2));
     const docRef = await addDoc(collection(db, BOOKINGS_COLLECTION), cleanedBooking);
+    console.log('[Firestore] Booking created successfully with ID:', docRef.id);
     return docRef.id;
-  } catch (error) {
-    console.error('Error creating booking:', error);
-    throw new Error('Failed to create booking');
+  } catch (error: any) {
+    console.error('[Firestore] Error creating booking:', error);
+    console.error('[Firestore] Error code:', error?.code);
+    console.error('[Firestore] Error message:', error?.message);
+    throw error;
   }
 }
 

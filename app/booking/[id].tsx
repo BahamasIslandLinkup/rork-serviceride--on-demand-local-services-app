@@ -70,10 +70,10 @@ export default function BookingScreen() {
       const result = await createBooking({
         clientId: user.id,
         clientName: user.name,
-        clientImage: user.avatar,
+        ...(user.avatar && { clientImage: user.avatar }),
         providerId: provider.id,
         providerName: provider.name,
-        providerImage: provider.image,
+        ...(provider.image && { providerImage: provider.image }),
         category: provider.category,
         service: provider.category,
         date: selectedDate,
@@ -83,7 +83,7 @@ export default function BookingScreen() {
         price: totalPrice,
         hours: parseFloat(hours),
         address,
-        notes,
+        ...(notes && { notes }),
       });
 
       if (result.success) {
