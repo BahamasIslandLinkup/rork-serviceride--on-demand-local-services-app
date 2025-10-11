@@ -1,8 +1,9 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
+import { initializeAuth, getReactNativePersistence, Auth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
-import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform, LogBox } from 'react-native';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
@@ -17,6 +18,8 @@ const firebaseConfig = {
 const isDevelopment = __DEV__;
 const useEmulators = isDevelopment && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS === 'true';
 
+LogBox.ignoreLogs(['@firebase/auth']);
+
 let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
@@ -26,7 +29,11 @@ try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
   
   db = getFirestore(app);
-  auth = getAuth(app);
+  
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+  
   storage = getStorage(app);
 
   if (useEmulators) {
