@@ -178,6 +178,7 @@ export default function LoginScreen() {
 
             <TouchableOpacity
               disabled={loading}
+              onPress={() => router.push('/auth/reset-password')}
             >
               <Text style={[styles.forgotPassword, { color: colors.primary }]}>
                 Forgot Password?
@@ -219,6 +220,7 @@ export default function LoginScreen() {
               </Text>
               <TouchableOpacity
                 disabled={loading}
+                onPress={() => router.push('/auth/signup')}
               >
                 <Text style={[styles.signupLink, { color: colors.primary }]}>Sign Up</Text>
               </TouchableOpacity>

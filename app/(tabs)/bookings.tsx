@@ -6,22 +6,32 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { Clock, MapPin, Calendar, Navigation } from 'lucide-react-native';
-import { mockBookings } from '@/mocks/services';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserBookings } from '@/hooks/useFirestoreBookings';
 import type { Booking } from '@/types';
 
 export default function BookingsScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
 
-  const activeBookings = mockBookings.filter(
+  const userRole = user?.role === 'admin' ? 'customer' : (user?.role || 'customer');
+  const { data: bookings = [], isLoading, refetch } = useUserBookings(
+    user?.id || '',
+    userRole
+  );
+
+  const activeBookings = bookings.filter(
     (b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in-progress'
   );
-  const pastBookings = mockBookings.filter(
+  const pastBookings = bookings.filter(
     (b) => b.status === 'completed' || b.status === 'cancelled'
   );
 
@@ -110,8 +120,21 @@ export default function BookingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         bounces={true}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={refetch}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
-        {displayBookings.length === 0 ? (
+        {isLoading && bookings.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading bookings...</Text>
+          </View>
+        ) : displayBookings.length === 0 ? (
           <View style={styles.emptyState}>
             <Calendar size={64} color={colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No bookings yet</Text>
@@ -182,6 +205,7 @@ export default function BookingsScreen() {
                   )}
                   <TouchableOpacity 
                     style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                    onPress={() => router.push(`/booking-detail/${booking.id}` as any)}
                     accessibilityRole="button"
                     accessibilityLabel="View booking details"
                   >
@@ -250,6 +274,16 @@ const styles = StyleSheet.create({
   emptyDescription: {
     fontSize: 14,
     textAlign: 'center' as const,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 15,
+    fontWeight: '500' as const,
   },
   bookingCard: {
     borderRadius: 16,
