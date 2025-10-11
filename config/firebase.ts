@@ -2,6 +2,7 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
@@ -45,6 +46,25 @@ try {
 }
 
 let analytics: any = null;
+
+if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  import('firebase/analytics')
+    .then(({ getAnalytics, isSupported }) => {
+      isSupported().then((supported) => {
+        if (supported) {
+          analytics = getAnalytics(app);
+          console.log('✅ Firebase Analytics initialized');
+        } else {
+          console.log('ℹ️ Firebase Analytics not supported in this environment');
+        }
+      }).catch((err) => {
+        console.log('ℹ️ Firebase Analytics check failed:', err.message);
+      });
+    })
+    .catch((err) => {
+      console.log('ℹ️ Firebase Analytics not available:', err.message);
+    });
+}
 
 export { app, db, auth, storage, analytics };
 export default app;
