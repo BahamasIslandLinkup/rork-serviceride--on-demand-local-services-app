@@ -179,11 +179,24 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         phone,
         role,
         verified: false,
-        kycStatus: role === 'provider' ? 'pending' : undefined,
+        ...(role === 'provider' && { kycStatus: 'pending' as const }),
         createdAt: new Date().toISOString(),
       };
 
-      await setDoc(doc(db, 'users', firebaseUser.uid), appUser);
+      const firestoreData: any = {
+        email,
+        name,
+        phone,
+        role,
+        verified: false,
+        createdAt: new Date().toISOString(),
+      };
+
+      if (role === 'provider') {
+        firestoreData.kycStatus = 'pending';
+      }
+
+      await setDoc(doc(db, 'users', firebaseUser.uid), firestoreData);
       await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(appUser));
       await secureStorage.setItem(AUTH_STORAGE_KEY, authToken);
 
@@ -247,10 +260,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       const updatedUser: User = {
         ...user,
         role,
-        kycStatus: role === 'provider' ? 'pending' : undefined,
+        ...(role === 'provider' && { kycStatus: 'pending' as const }),
       };
+
+      const firestoreData: any = {
+        role,
+      };
+
+      if (role === 'provider') {
+        firestoreData.kycStatus = 'pending';
+      } else {
+        delete updatedUser.kycStatus;
+      }
       
-      await setDoc(doc(db, 'users', user.id), updatedUser, { merge: true });
+      await setDoc(doc(db, 'users', user.id), firestoreData, { merge: true });
       await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updatedUser));
       setUser(updatedUser);
     } catch (error) {
