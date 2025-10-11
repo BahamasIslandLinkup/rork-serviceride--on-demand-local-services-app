@@ -47,13 +47,17 @@ try {
 
 let analytics: any = null;
 
-if (Platform.OS === 'web' && typeof window !== 'undefined') {
+if (Platform.OS === 'web' && typeof window !== 'undefined' && process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID) {
   import('firebase/analytics')
     .then(({ getAnalytics, isSupported }) => {
       isSupported().then((supported) => {
         if (supported) {
-          analytics = getAnalytics(app);
-          console.log('✅ Firebase Analytics initialized');
+          try {
+            analytics = getAnalytics(app);
+            console.log('✅ Firebase Analytics initialized');
+          } catch (err: any) {
+            console.log('ℹ️ Firebase Analytics initialization skipped:', err.message);
+          }
         } else {
           console.log('ℹ️ Firebase Analytics not supported in this environment');
         }
@@ -64,6 +68,8 @@ if (Platform.OS === 'web' && typeof window !== 'undefined') {
     .catch((err) => {
       console.log('ℹ️ Firebase Analytics not available:', err.message);
     });
+} else {
+  console.log('ℹ️ Firebase Analytics disabled (no measurement ID provided)');
 }
 
 export { app, db, auth, storage, analytics };
