@@ -65,11 +65,12 @@ export async function getUserBookings(
   status?: string
 ): Promise<Booking[]> {
   try {
+    console.log('[Firestore] Getting bookings for user:', userId, 'role:', role, 'status:', status);
     const bookingsRef = collection(db, BOOKINGS_COLLECTION);
     let q = query(
       bookingsRef,
-      where(role === 'customer' ? 'customerId' : 'providerId', '==', userId),
-      orderBy('date', 'desc'),
+      where(role === 'customer' ? 'clientId' : 'providerId', '==', userId),
+      orderBy('createdAt', 'desc'),
       limit(50)
     );
 
@@ -78,10 +79,14 @@ export async function getUserBookings(
     }
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
-  } catch (error) {
-    console.error('Error getting user bookings:', error);
-    throw new Error('Failed to get bookings');
+    const bookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
+    console.log('[Firestore] Found', bookings.length, 'bookings');
+    return bookings;
+  } catch (error: any) {
+    console.error('[Firestore] Error getting user bookings:', error);
+    console.error('[Firestore] Error code:', error?.code);
+    console.error('[Firestore] Error message:', error?.message);
+    throw error;
   }
 }
 
