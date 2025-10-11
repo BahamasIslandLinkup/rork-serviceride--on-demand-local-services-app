@@ -19,11 +19,19 @@ const BOOKINGS_COLLECTION = 'bookings';
 
 export async function createBooking(booking: Omit<Booking, 'id'>): Promise<string> {
   try {
-    const docRef = await addDoc(collection(db, BOOKINGS_COLLECTION), {
+    const cleanedBooking: any = {
       ...booking,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
+    };
+
+    Object.keys(cleanedBooking).forEach(key => {
+      if (cleanedBooking[key] === undefined) {
+        delete cleanedBooking[key];
+      }
     });
+
+    const docRef = await addDoc(collection(db, BOOKINGS_COLLECTION), cleanedBooking);
     return docRef.id;
   } catch (error) {
     console.error('Error creating booking:', error);
