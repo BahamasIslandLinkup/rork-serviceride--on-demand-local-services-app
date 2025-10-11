@@ -139,6 +139,7 @@ export default function ProfileScreen() {
     { icon: MapPin, label: 'Saved Addresses', onPress: () => setShowAddressModal(true) },
     { icon: CreditCard, label: 'Payment Methods', onPress: () => {} },
     { icon: Bell, label: 'Notifications', onPress: () => router.push('/settings/notifications' as any) },
+    { icon: Settings, label: 'Firebase Test', onPress: () => router.push('/firebase-test' as any) },
     { icon: HelpCircle, label: 'Help & Support', onPress: () => {} },
     { icon: Settings, label: 'Settings', onPress: () => {} },
   ];

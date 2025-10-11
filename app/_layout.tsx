@@ -37,6 +37,7 @@ function RootLayoutNav() {
       <Stack.Screen name="payment-methods" options={{ headerShown: true, title: "Payment Methods" }} />
       <Stack.Screen name="review/[bookingId]" options={{ headerShown: true, presentation: "modal", title: "Rate & Review" }} />
       <Stack.Screen name="notifications" options={{ headerShown: true, title: "Notifications" }} />
+      <Stack.Screen name="firebase-test" options={{ headerShown: true, title: "Firebase Test" }} />
     </Stack>
   );
 }
