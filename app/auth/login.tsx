@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react-native';
+import { Mail, Lock, Eye, EyeOff, CheckSquare, Square } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function LoginScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { login } = useAuth();
+  const { login, getRememberedEmail } = useAuth();
   const insets = useSafeAreaInsets();
   
   const [email, setEmail] = useState('');
@@ -28,9 +28,21 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+
+  useEffect(() => {
+    const loadRememberedEmail = async () => {
+      const rememberedEmail = await getRememberedEmail();
+      if (rememberedEmail) {
+        setEmail(rememberedEmail);
+        setRememberMe(true);
+      }
+    };
+    loadRememberedEmail();
+  }, [getRememberedEmail]);
 
   const validateEmail = (text: string) => {
     setEmail(text);
@@ -65,7 +77,7 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, rememberMe);
       if (result.success) {
         router.replace('/(tabs)');
       } else {
@@ -176,14 +188,32 @@ export default function LoginScreen() {
               ) : null}
             </View>
 
-            <TouchableOpacity
-              disabled={loading}
-              onPress={() => router.push('/auth/reset-password')}
-            >
-              <Text style={[styles.forgotPassword, { color: colors.primary }]}>
-                Forgot Password?
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.optionsRow}>
+              <TouchableOpacity
+                style={styles.rememberMeContainer}
+                onPress={() => setRememberMe(!rememberMe)}
+                disabled={loading}
+                activeOpacity={0.7}
+              >
+                {rememberMe ? (
+                  <CheckSquare size={20} color={colors.primary} strokeWidth={2.5} />
+                ) : (
+                  <Square size={20} color={colors.textLight} strokeWidth={2} />
+                )}
+                <Text style={[styles.rememberMeText, { color: colors.text }]}>
+                  Remember me
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                disabled={loading}
+                onPress={() => router.push('/auth/reset-password')}
+              >
+                <Text style={[styles.forgotPassword, { color: colors.primary }]}>
+                  Forgot Password?
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[
@@ -318,11 +348,24 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginLeft: 4,
   },
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rememberMeText: {
+    fontSize: 15,
+    fontWeight: '500' as const,
+  },
   forgotPassword: {
     fontSize: 15,
     fontWeight: '600' as const,
-    textAlign: 'right',
-    marginBottom: 32,
   },
   loginButton: {
     borderRadius: 12,

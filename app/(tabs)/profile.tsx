@@ -11,6 +11,7 @@ import {
   Modal,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -31,6 +32,7 @@ import {
   Navigation,
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type SavedAddress = {
@@ -45,6 +47,7 @@ type SavedAddress = {
 export default function ProfileScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
   const router = useRouter();
+  const { logout, user } = useAuth();
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [newAddress, setNewAddress] = useState({
@@ -55,6 +58,7 @@ export default function ProfileScreen() {
     instructions: '',
   });
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   const getCurrentLocation = async () => {
     setIsLoadingLocation(true);
@@ -132,6 +136,38 @@ export default function ProfileScreen() {
       instructions: '',
     });
   };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoggingOut(true);
+              console.log('[Profile] Logging out...');
+              await logout();
+              console.log('[Profile] Logout successful, redirecting to login');
+              router.replace('/auth/login');
+            } catch (error) {
+              console.error('[Profile] Logout error:', error);
+              Alert.alert('Error', 'Failed to logout. Please try again.');
+            } finally {
+              setIsLoggingOut(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
   
   const menuItems = [
     { icon: Briefcase, label: 'Business Dashboard', onPress: () => router.push('/business-dashboard' as any) },
@@ -201,13 +237,13 @@ export default function ProfileScreen() {
               }),
             }]}>
               <Image
-                source={{ uri: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80' }}
+                source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80' }}
                 style={[styles.avatar, { borderColor: colors.primary }]}
               />
             </View>
-            <Text style={[styles.name, { color: colors.text }]}>John Smith</Text>
-            <Text style={[styles.email, { color: colors.textSecondary }]}>john.smith@email.com</Text>
-            <Text style={[styles.phone, { color: colors.textSecondary }]}>+1 (555) 123-4567</Text>
+            <Text style={[styles.name, { color: colors.text }]}>{user?.name || 'User'}</Text>
+            <Text style={[styles.email, { color: colors.textSecondary }]}>{user?.email || 'email@example.com'}</Text>
+            <Text style={[styles.phone, { color: colors.textSecondary }]}>{user?.phone || 'No phone'}</Text>
           </View>
 
           <View style={styles.statsContainer}>
@@ -376,9 +412,17 @@ export default function ProfileScreen() {
               }),
             }]} 
             activeOpacity={0.8}
+            onPress={handleLogout}
+            disabled={isLoggingOut}
           >
-            <LogOut size={22} color={colors.error} strokeWidth={2.5} />
-            <Text style={[styles.logoutText, { color: colors.error }]}>Log Out</Text>
+            {isLoggingOut ? (
+              <ActivityIndicator color={colors.error} />
+            ) : (
+              <>
+                <LogOut size={22} color={colors.error} strokeWidth={2.5} />
+                <Text style={[styles.logoutText, { color: colors.error }]}>Log Out</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <Text style={[styles.version, { color: colors.textLight }]}>Island Linkup v1.0.0</Text>

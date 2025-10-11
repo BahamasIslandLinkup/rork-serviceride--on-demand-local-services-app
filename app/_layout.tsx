@@ -1,14 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { LocationProvider } from "@/contexts/LocationContext";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ActivityIndicator, View } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -16,6 +17,35 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const { colors } = useTheme();
+  const { isAuthenticated, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) {
+      console.log('[Navigation] Auth loading...');
+      return;
+    }
+
+    const inAuthGroup = segments[0] === 'auth';
+    console.log('[Navigation] Auth state:', { isAuthenticated, inAuthGroup, segments });
+
+    if (!isAuthenticated && !inAuthGroup) {
+      console.log('[Navigation] Redirecting to login - user not authenticated');
+      router.replace('/auth/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      console.log('[Navigation] Redirecting to tabs - user authenticated');
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, segments, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
   
   return (
     <Stack
@@ -28,6 +58,8 @@ function RootLayoutNav() {
     >
       <Stack.Screen name="auth/login" options={{ headerShown: false }} />
       <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/reset-password" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/verify" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="category/[id]" options={{ headerShown: true }} />
       <Stack.Screen name="provider/[id]" options={{ headerShown: true }} />
@@ -39,6 +71,17 @@ function RootLayoutNav() {
       <Stack.Screen name="notifications" options={{ headerShown: true, title: "Notifications" }} />
       <Stack.Screen name="firebase-test" options={{ headerShown: true, title: "Firebase Test" }} />
       <Stack.Screen name="testing-checklist" options={{ headerShown: false }} />
+      <Stack.Screen name="business-dashboard" options={{ headerShown: true, title: "Business Dashboard" }} />
+      <Stack.Screen name="chat/[id]" options={{ headerShown: true }} />
+      <Stack.Screen name="dispute/new" options={{ headerShown: true, title: "New Dispute" }} />
+      <Stack.Screen name="dispute/[id]" options={{ headerShown: true, title: "Dispute Details" }} />
+      <Stack.Screen name="onboarding/availability" options={{ headerShown: true, title: "Set Availability" }} />
+      <Stack.Screen name="onboarding/kyc" options={{ headerShown: true, title: "KYC Verification" }} />
+      <Stack.Screen name="onboarding/services" options={{ headerShown: true, title: "Your Services" }} />
+      <Stack.Screen name="onboarding/complete" options={{ headerShown: false }} />
+      <Stack.Screen name="provider/earnings" options={{ headerShown: true, title: "Earnings" }} />
+      <Stack.Screen name="settings/notifications" options={{ headerShown: true, title: "Notification Settings" }} />
+      <Stack.Screen name="tracking/[bookingId]" options={{ headerShown: true, title: "Track Provider" }} />
     </Stack>
   );
 }
