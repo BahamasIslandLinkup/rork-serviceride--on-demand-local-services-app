@@ -12,6 +12,7 @@ import {
   limit,
   Timestamp,
   onSnapshot,
+  QueryConstraint,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { Booking } from '@/types';
@@ -67,16 +68,19 @@ export async function getUserBookings(
   try {
     console.log('[Firestore] Getting bookings for user:', userId, 'role:', role, 'status:', status);
     const bookingsRef = collection(db, BOOKINGS_COLLECTION);
-    let q = query(
-      bookingsRef,
-      where(role === 'customer' ? 'clientId' : 'providerId', '==', userId),
-      orderBy('createdAt', 'desc'),
-      limit(50)
-    );
-
+    
+    const constraints: QueryConstraint[] = [
+      where(role === 'customer' ? 'clientId' : 'providerId', '==', userId)
+    ];
+    
     if (status) {
-      q = query(q, where('status', '==', status));
+      constraints.push(where('status', '==', status));
     }
+    
+    constraints.push(orderBy('createdAt', 'desc'));
+    constraints.push(limit(50));
+    
+    const q = query(bookingsRef, ...constraints);
 
     const querySnapshot = await getDocs(q);
     const bookings = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
@@ -162,16 +166,19 @@ export function subscribeToUserBookings(
   status?: string
 ): () => void {
   const bookingsRef = collection(db, BOOKINGS_COLLECTION);
-  let q = query(
-    bookingsRef,
-    where(role === 'customer' ? 'clientId' : 'providerId', '==', userId),
-    orderBy('createdAt', 'desc'),
-    limit(50)
-  );
-
+  
+  const constraints: QueryConstraint[] = [
+    where(role === 'customer' ? 'clientId' : 'providerId', '==', userId)
+  ];
+  
   if (status) {
-    q = query(q, where('status', '==', status));
+    constraints.push(where('status', '==', status));
   }
+  
+  constraints.push(orderBy('createdAt', 'desc'));
+  constraints.push(limit(50));
+  
+  const q = query(bookingsRef, ...constraints);
 
   const unsubscribe = onSnapshot(
     q,
