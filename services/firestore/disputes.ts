@@ -101,16 +101,42 @@ export async function getDispute(disputeId: string): Promise<Dispute | null> {
 
 export async function getUserDisputes(userId: string): Promise<Dispute[]> {
   try {
+    console.log('[Disputes] Getting disputes for user:', userId);
     const disputesRef = collection(db, DISPUTES_COLLECTION);
-    const q = query(
+    
+    const customerQuery = query(
       disputesRef,
       where('customerId', '==', userId),
       orderBy('createdAt', 'desc'),
       limit(50)
     );
     
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Dispute));
+    const providerQuery = query(
+      disputesRef,
+      where('providerId', '==', userId),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    
+    const [customerSnapshot, providerSnapshot] = await Promise.all([
+      getDocs(customerQuery),
+      getDocs(providerQuery),
+    ]);
+    
+    const customerDisputes = customerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Dispute));
+    const providerDisputes = providerSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Dispute));
+    
+    const allDisputes = [...customerDisputes, ...providerDisputes];
+    const uniqueDisputes = Array.from(new Map(allDisputes.map(d => [d.id, d])).values());
+    
+    uniqueDisputes.sort((a, b) => {
+      const aTime = typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : (a.createdAt as any).toMillis();
+      const bTime = typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : (b.createdAt as any).toMillis();
+      return bTime - aTime;
+    });
+    
+    console.log('[Disputes] Found', uniqueDisputes.length, 'disputes');
+    return uniqueDisputes;
   } catch (error) {
     console.error('[Disputes] Error getting user disputes:', error);
     throw new Error('Failed to get disputes');

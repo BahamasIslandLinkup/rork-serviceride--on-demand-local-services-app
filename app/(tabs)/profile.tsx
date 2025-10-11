@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -34,6 +34,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useUserBookings } from '@/hooks/useFirestoreBookings';
 
 type SavedAddress = {
   id: string;
@@ -48,6 +49,14 @@ export default function ProfileScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
   const router = useRouter();
   const { logout, user } = useAuth();
+  const userRole = user?.role === 'admin' ? 'customer' : (user?.role || 'customer');
+  const { data: bookings = [] } = useUserBookings(user?.id || '', userRole);
+  
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    completedBookings: 0,
+    totalSpent: 0,
+  });
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [newAddress, setNewAddress] = useState({
@@ -59,6 +68,25 @@ export default function ProfileScreen() {
   });
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  
+  useEffect(() => {
+    if (bookings.length > 0) {
+      const completed = bookings.filter(b => b.status === 'completed');
+      const totalSpent = completed.reduce((sum, b) => sum + (b.price || 0), 0);
+      
+      setStats({
+        totalBookings: bookings.length,
+        completedBookings: completed.length,
+        totalSpent,
+      });
+      
+      console.log('[Profile] Updated stats:', {
+        totalBookings: bookings.length,
+        completedBookings: completed.length,
+        totalSpent,
+      });
+    }
+  }, [bookings]);
   
   const getCurrentLocation = async () => {
     setIsLoadingLocation(true);
@@ -264,7 +292,7 @@ export default function ProfileScreen() {
                 },
               }),
             }]}>
-              <Text style={[styles.statValue, { color: colors.primary }]}>12</Text>
+              <Text style={[styles.statValue, { color: colors.primary }]}>{stats.totalBookings}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Bookings</Text>
             </View>
             <View style={[styles.statCard, { 
@@ -285,7 +313,7 @@ export default function ProfileScreen() {
                 },
               }),
             }]}>
-              <Text style={[styles.statValue, { color: colors.primary }]}>8</Text>
+              <Text style={[styles.statValue, { color: colors.primary }]}>{stats.completedBookings}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Completed</Text>
             </View>
             <View style={[styles.statCard, { 
@@ -306,7 +334,7 @@ export default function ProfileScreen() {
                 },
               }),
             }]}>
-              <Text style={[styles.statValue, { color: colors.secondary }]}>$1,240</Text>
+              <Text style={[styles.statValue, { color: colors.secondary }]}>${stats.totalSpent.toLocaleString()}</Text>
               <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Spent</Text>
             </View>
           </View>

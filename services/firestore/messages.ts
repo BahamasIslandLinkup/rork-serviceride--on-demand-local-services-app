@@ -109,21 +109,44 @@ export async function getConversationMessages(
   limitCount: number = 50
 ): Promise<Message[]> {
   try {
+    console.log('[Messages] Getting messages between', userId, 'and', otherUserId);
     const messagesRef = collection(db, MESSAGES_COLLECTION);
-    const q = query(
+    
+    const sentQuery = query(
       messagesRef,
-      where('senderId', 'in', [userId, otherUserId]),
-      where('receiverId', 'in', [userId, otherUserId]),
+      where('senderId', '==', userId),
+      where('receiverId', '==', otherUserId),
+      orderBy('timestamp', 'desc'),
+      limit(limitCount)
+    );
+    
+    const receivedQuery = query(
+      messagesRef,
+      where('senderId', '==', otherUserId),
+      where('receiverId', '==', userId),
       orderBy('timestamp', 'desc'),
       limit(limitCount)
     );
 
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() } as Message))
-      .reverse();
+    const [sentSnapshot, receivedSnapshot] = await Promise.all([
+      getDocs(sentQuery),
+      getDocs(receivedQuery),
+    ]);
+    
+    const sentMessages = sentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+    const receivedMessages = receivedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+    
+    const allMessages = [...sentMessages, ...receivedMessages];
+    allMessages.sort((a, b) => {
+      const aTime = typeof a.timestamp === 'string' ? new Date(a.timestamp).getTime() : (a.timestamp as any).toMillis();
+      const bTime = typeof b.timestamp === 'string' ? new Date(b.timestamp).getTime() : (b.timestamp as any).toMillis();
+      return aTime - bTime;
+    });
+    
+    console.log('[Messages] Found', allMessages.length, 'messages');
+    return allMessages.slice(-limitCount);
   } catch (error) {
-    console.error('Error getting messages:', error);
+    console.error('[Messages] Error getting messages:', error);
     throw new Error('Failed to get messages');
   }
 }
@@ -133,20 +156,50 @@ export function subscribeToMessages(
   otherUserId: string,
   callback: (messages: Message[]) => void
 ): () => void {
+  console.log('[Messages] Subscribing to messages between', userId, 'and', otherUserId);
   const messagesRef = collection(db, MESSAGES_COLLECTION);
-  const q = query(
+  
+  const sentQuery = query(
     messagesRef,
-    where('senderId', 'in', [userId, otherUserId]),
-    where('receiverId', 'in', [userId, otherUserId]),
+    where('senderId', '==', userId),
+    where('receiverId', '==', otherUserId),
     orderBy('timestamp', 'asc')
   );
-
-  const unsubscribe = onSnapshot(q, snapshot => {
-    const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-    callback(messages);
+  
+  const receivedQuery = query(
+    messagesRef,
+    where('senderId', '==', otherUserId),
+    where('receiverId', '==', userId),
+    orderBy('timestamp', 'asc')
+  );
+  
+  let sentMessages: Message[] = [];
+  let receivedMessages: Message[] = [];
+  
+  const updateMessages = () => {
+    const allMessages = [...sentMessages, ...receivedMessages];
+    allMessages.sort((a, b) => {
+      const aTime = typeof a.timestamp === 'string' ? new Date(a.timestamp).getTime() : (a.timestamp as any).toMillis();
+      const bTime = typeof b.timestamp === 'string' ? new Date(b.timestamp).getTime() : (b.timestamp as any).toMillis();
+      return aTime - bTime;
+    });
+    callback(allMessages);
+  };
+  
+  const unsubscribeSent = onSnapshot(sentQuery, snapshot => {
+    sentMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+    updateMessages();
+  });
+  
+  const unsubscribeReceived = onSnapshot(receivedQuery, snapshot => {
+    receivedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+    updateMessages();
   });
 
-  return unsubscribe;
+  return () => {
+    unsubscribeSent();
+    unsubscribeReceived();
+  };
 }
 
 export async function markMessageAsRead(messageId: string): Promise<void> {
