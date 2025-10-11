@@ -5,13 +5,13 @@ import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/st
 import { Platform, LogBox } from 'react-native';
 
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAt__1VR0GlFLxvRsg_laYlyVgwNsO3XSA",
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || "bahamasislandlinkup-9feff.firebaseapp.com",
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || "bahamasislandlinkup-9feff",
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || "bahamasislandlinkup-9feff.firebasestorage.app",
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "356564119827",
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || "1:356564119827:web:65ddeedcea480d612d6ae6",
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID || "G-9J33QD9L57",
 };
 
 const isDevelopment = __DEV__;
@@ -23,6 +23,11 @@ let app: FirebaseApp;
 let db: Firestore;
 let auth: Auth;
 let storage: FirebaseStorage;
+
+console.log('🔑 Firebase Config Check:');
+console.log('API Key present:', !!firebaseConfig.apiKey);
+console.log('API Key length:', firebaseConfig.apiKey?.length);
+console.log('Project ID:', firebaseConfig.projectId);
 
 try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
