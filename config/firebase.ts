@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
+import { initializeAuth, getAuth, Auth, connectAuthEmulator, browserLocalPersistence, indexedDBLocalPersistence } from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
 import { Platform, LogBox } from 'react-native';
 
@@ -28,7 +28,23 @@ try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
   
   db = getFirestore(app);
-  auth = getAuth(app);
+  
+  try {
+    if (Platform.OS === 'web') {
+      auth = initializeAuth(app, {
+        persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      });
+    } else {
+      auth = getAuth(app);
+    }
+  } catch (error: any) {
+    if (error.code === 'auth/already-initialized') {
+      auth = getAuth(app);
+    } else {
+      throw error;
+    }
+  }
+  
   storage = getStorage(app);
 
   if (useEmulators) {
