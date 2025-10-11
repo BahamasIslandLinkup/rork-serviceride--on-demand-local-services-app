@@ -26,7 +26,7 @@ service cloud.firestore {
       
       allow create: if isAuthenticated() && 
         request.resource.data.clientId == request.auth.uid &&
-        request.resource.data.keys().hasAll(['clientId', 'providerId', 'status', 'price']);
+        request.resource.data.keys().hasAll(['clientId', 'providerId', 'status', 'price', 'category', 'service', 'date', 'time', 'scheduledAt', 'address', 'clientName', 'providerName']);
       
       allow update: if isAuthenticated() && (
         resource.data.clientId == request.auth.uid ||
