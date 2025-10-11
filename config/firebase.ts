@@ -1,8 +1,7 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { initializeAuth, getReactNativePersistence, Auth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, LogBox } from 'react-native';
 
 const firebaseConfig = {
@@ -29,11 +28,7 @@ try {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
   
   db = getFirestore(app);
-  
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-  
+  auth = getAuth(app);
   storage = getStorage(app);
 
   if (useEmulators) {
