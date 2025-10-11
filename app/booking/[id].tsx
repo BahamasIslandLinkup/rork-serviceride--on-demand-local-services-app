@@ -8,11 +8,14 @@ import {
   Image,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar, Clock, MapPin } from 'lucide-react-native';
 import { serviceProviders } from '@/mocks/services';
 import colors from '@/constants/colors';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBooking } from '@/contexts/BookingContext';
 
 const timeSlots = [
   '8:00 AM',
@@ -30,6 +33,8 @@ const timeSlots = [
 export default function BookingScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
+  const { createBooking, isLoading: bookingLoading } = useBooking();
   const provider = serviceProviders.find((p) => p.id === id);
 
   const [selectedDate, setSelectedDate] = useState('2025-10-12');
@@ -37,6 +42,7 @@ export default function BookingScreen() {
   const [hours, setHours] = useState('2');
   const [address, setAddress] = useState('123 Main St, Your City');
   const [notes, setNotes] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!provider) {
     return null;
@@ -44,26 +50,81 @@ export default function BookingScreen() {
 
   const totalPrice = provider.hourlyRate * parseFloat(hours || '0');
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!selectedTime) {
       Alert.alert('Missing Information', 'Please select a time slot');
       return;
     }
 
-    Alert.alert(
-      'Booking Confirmed!',
-      `Your booking with ${provider.name} has been confirmed for ${selectedDate} at ${selectedTime}`,
-      [
-        {
-          text: 'View Bookings',
-          onPress: () => router.push('/(tabs)/bookings'),
-        },
-        {
-          text: 'OK',
-          onPress: () => router.back(),
-        },
-      ]
-    );
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to book a service');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      console.log('[Booking] Creating booking...');
+
+      const scheduledAt = new Date(`${selectedDate}T${convertTo24Hour(selectedTime)}`);
+
+      const result = await createBooking({
+        clientId: user.id,
+        clientName: user.name,
+        clientImage: user.avatar,
+        providerId: provider.id,
+        providerName: provider.name,
+        providerImage: provider.image,
+        category: provider.category,
+        service: provider.category,
+        date: selectedDate,
+        time: selectedTime,
+        scheduledAt: scheduledAt.toISOString(),
+        status: 'pending',
+        price: totalPrice,
+        hours: parseFloat(hours),
+        address,
+        notes,
+      });
+
+      if (result.success) {
+        Alert.alert(
+          'Booking Created!',
+          `Your booking with ${provider.name} has been created for ${selectedDate} at ${selectedTime}`,
+          [
+            {
+              text: 'View Bookings',
+              onPress: () => router.push('/(tabs)/bookings'),
+            },
+            {
+              text: 'OK',
+              onPress: () => router.back(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to create booking');
+      }
+    } catch (error) {
+      console.error('[Booking] Error creating booking:', error);
+      Alert.alert('Error', 'Failed to create booking. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const convertTo24Hour = (time12h: string): string => {
+    const [time, modifier] = time12h.split(' ');
+    let [hours, minutes] = time.split(':');
+    
+    if (hours === '12') {
+      hours = '00';
+    }
+    
+    if (modifier === 'PM') {
+      hours = String(parseInt(hours, 10) + 12);
+    }
+    
+    return `${hours.padStart(2, '0')}:${minutes || '00'}:00`;
   };
 
   return (
@@ -210,11 +271,16 @@ export default function BookingScreen() {
           <Text style={styles.priceValue}>${totalPrice.toFixed(2)}</Text>
         </View>
         <TouchableOpacity
-          style={styles.bookButton}
+          style={[styles.bookButton, (isSubmitting || bookingLoading) && styles.bookButtonDisabled]}
           onPress={handleBooking}
           activeOpacity={0.8}
+          disabled={isSubmitting || bookingLoading}
         >
-          <Text style={styles.bookButtonText}>Confirm Booking</Text>
+          {isSubmitting || bookingLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.bookButtonText}>Confirm Booking</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -445,5 +511,8 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700' as const,
     color: '#fff',
+  },
+  bookButtonDisabled: {
+    opacity: 0.6,
   },
 });

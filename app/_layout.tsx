@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { BookingProvider } from "@/contexts/BookingContext";
 import { ActivityIndicator, View } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
@@ -96,15 +97,17 @@ export default function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
           <NotificationProvider>
-            <PaymentProvider>
-              <LocationProvider>
-                <CartProvider>
-                  <GestureHandlerRootView style={{ flex: 1 }}>
-                    <RootLayoutNav />
-                  </GestureHandlerRootView>
-                </CartProvider>
-              </LocationProvider>
-            </PaymentProvider>
+            <BookingProvider>
+              <PaymentProvider>
+                <LocationProvider>
+                  <CartProvider>
+                    <GestureHandlerRootView style={{ flex: 1 }}>
+                      <RootLayoutNav />
+                    </GestureHandlerRootView>
+                  </CartProvider>
+                </LocationProvider>
+              </PaymentProvider>
+            </BookingProvider>
           </NotificationProvider>
         </AuthProvider>
       </ThemeProvider>

@@ -45,6 +45,10 @@ export type ProviderLocation = {
 
 export type Booking = {
   id: string;
+  serviceId?: string;
+  clientId: string;
+  clientName: string;
+  clientImage?: string;
   providerId: string;
   providerName: string;
   providerImage: string;
@@ -52,12 +56,22 @@ export type Booking = {
   service: string;
   date: string;
   time: string;
-  status: 'pending' | 'confirmed' | 'in-progress' | 'completed' | 'cancelled';
+  scheduledAt: string;
+  status: 'pending' | 'accepted' | 'declined' | 'in-progress' | 'completed' | 'cancelled';
   price: number;
+  hours?: number;
   address: string;
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  notes?: string;
+  declineReason?: string;
   providerLocation?: ProviderLocation;
   vehicleInfo?: VehicleInfo;
   estimatedArrival?: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Review = {

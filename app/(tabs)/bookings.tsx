@@ -29,7 +29,7 @@ export default function BookingsScreen() {
   );
 
   const activeBookings = bookings.filter(
-    (b) => b.status === 'pending' || b.status === 'confirmed' || b.status === 'in-progress'
+    (b) => b.status === 'pending' || b.status === 'accepted' || b.status === 'in-progress'
   );
   const pastBookings = bookings.filter(
     (b) => b.status === 'completed' || b.status === 'cancelled'
@@ -39,8 +39,10 @@ export default function BookingsScreen() {
 
   const getStatusColor = (status: Booking['status']) => {
     switch (status) {
-      case 'confirmed':
+      case 'accepted':
         return colors.success;
+      case 'declined':
+        return colors.error;
       case 'pending':
         return colors.warning;
       case 'in-progress':
@@ -60,8 +62,10 @@ export default function BookingsScreen() {
 
   const getStatusIcon = (status: Booking['status']) => {
     switch (status) {
-      case 'confirmed':
+      case 'accepted':
         return '✓';
+      case 'declined':
+        return '✕';
       case 'pending':
         return '⋯';
       case 'in-progress':
@@ -192,7 +196,7 @@ export default function BookingsScreen() {
 
               {activeTab === 'active' && (
                 <View style={styles.actionButtons}>
-                  {booking.status === 'confirmed' && booking.providerLocation && (
+                  {booking.status === 'accepted' && booking.providerLocation && (
                     <TouchableOpacity 
                       style={[styles.trackButton, { backgroundColor: colors.secondary, borderColor: colors.secondary }]}
                       onPress={() => router.push(`/tracking/${booking.id}` as any)}
