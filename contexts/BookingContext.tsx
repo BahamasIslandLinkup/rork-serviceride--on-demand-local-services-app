@@ -52,7 +52,7 @@ export const [BookingProvider, useBooking] = createContextHook(() => {
 
       const newBooking: Omit<Booking, 'id'> = {
         ...bookingData,
-        status: 'pending',
+        status: 'pending_confirmation',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

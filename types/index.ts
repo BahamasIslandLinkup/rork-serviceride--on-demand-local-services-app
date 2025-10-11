@@ -57,7 +57,7 @@ export type Booking = {
   date: string;
   time: string;
   scheduledAt: string;
-  status: 'pending' | 'accepted' | 'declined' | 'in-progress' | 'completed' | 'cancelled';
+  status: 'pending_confirmation' | 'pending' | 'accepted' | 'declined' | 'in-progress' | 'completed' | 'cancelled';
   price: number;
   hours?: number;
   address: string;

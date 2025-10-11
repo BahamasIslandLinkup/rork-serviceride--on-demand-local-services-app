@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, Calendar, User, Award, MessageCircle, Search, LifeBuoy } from "lucide-react-native";
+import { Home, Calendar, User, MessageCircle, Search } from "lucide-react-native";
 import React, { useRef, useEffect } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { View, Platform, Animated } from "react-native";
@@ -81,7 +81,7 @@ function AnimatedTabIcon({
           <Icon
             size={24}
             color={focused ? '#1E1E1E' : color}
-            strokeWidth={focused ? 2.5 : 2}
+            strokeWidth={focused ? 2.5 : 2.2}
           />
         </View>
       </View>
@@ -96,14 +96,14 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textLight,
+        tabBarInactiveTintColor: `${colors.primary}80`,
         headerShown: false,
         tabBarStyle: {
           backgroundColor: colors.card,
           borderTopWidth: 0,
-          height: 75,
-          paddingBottom: 14,
-          paddingTop: 10,
+          height: 68,
+          paddingBottom: 10,
+          paddingTop: 8,
           ...Platform.select({
             ios: {
               shadowColor: colors.primary,
@@ -122,8 +122,8 @@ export default function TabLayout() {
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: '700' as const,
-          letterSpacing: 0.5,
-          marginTop: 4,
+          letterSpacing: 0.3,
+          marginTop: 2,
         },
         tabBarIconStyle: {
           marginBottom: 0,
@@ -159,34 +159,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="featured"
-        options={{
-          title: "Featured",
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon
-              Icon={Award}
-              color={color}
-              focused={focused}
-              colors={colors}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{
-          title: "Messages",
-          tabBarIcon: ({ color, focused }) => (
-            <AnimatedTabIcon
-              Icon={MessageCircle}
-              color={color}
-              focused={focused}
-              colors={colors}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="bookings"
         options={{
           title: "Bookings",
@@ -201,12 +173,12 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="support"
+        name="messages"
         options={{
-          title: "Support",
+          title: "Messages",
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabIcon
-              Icon={LifeBuoy}
+              Icon={MessageCircle}
               color={color}
               focused={focused}
               colors={colors}

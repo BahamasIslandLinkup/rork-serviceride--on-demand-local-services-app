@@ -20,7 +20,7 @@ import type { Booking } from '@/types';
 export default function BookingsScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'active' | 'past'>('active');
+  const [activeTab, setActiveTab] = useState<'awaiting' | 'active' | 'past'>('awaiting');
 
   const userRole = user?.role === 'admin' ? 'customer' : (user?.role || 'customer');
   const { data: bookings = [], isLoading, refetch } = useUserBookings(
@@ -28,6 +28,9 @@ export default function BookingsScreen() {
     userRole
   );
 
+  const awaitingBookings = bookings.filter(
+    (b) => b.status === 'pending_confirmation'
+  );
   const activeBookings = bookings.filter(
     (b) => b.status === 'pending' || b.status === 'accepted' || b.status === 'in-progress'
   );
@@ -35,10 +38,12 @@ export default function BookingsScreen() {
     (b) => b.status === 'completed' || b.status === 'cancelled'
   );
 
-  const displayBookings = activeTab === 'active' ? activeBookings : pastBookings;
+  const displayBookings = activeTab === 'awaiting' ? awaitingBookings : activeTab === 'active' ? activeBookings : pastBookings;
 
   const getStatusColor = (status: Booking['status']) => {
     switch (status) {
+      case 'pending_confirmation':
+        return colors.warning;
       case 'accepted':
         return colors.success;
       case 'declined':
@@ -62,6 +67,8 @@ export default function BookingsScreen() {
 
   const getStatusIcon = (status: Booking['status']) => {
     switch (status) {
+      case 'pending_confirmation':
+        return '⏳';
       case 'accepted':
         return '✓';
       case 'declined':
@@ -100,7 +107,20 @@ export default function BookingsScreen() {
         <Text style={[styles.headerTitle, { color: colors.text }]}>Bookings</Text>
       </View>
 
-      <View style={[styles.tabContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={[styles.tabContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
+        contentContainerStyle={styles.tabContent}
+      >
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'awaiting' && { backgroundColor: colors.warning }]}
+          onPress={() => setActiveTab('awaiting')}
+        >
+          <Text style={[styles.tabText, { color: activeTab === 'awaiting' ? '#fff' : colors.textSecondary }]}>
+            Awaiting ({awaitingBookings.length})
+          </Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'active' && { backgroundColor: colors.primary }]}
           onPress={() => setActiveTab('active')}
@@ -110,14 +130,14 @@ export default function BookingsScreen() {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'past' && { backgroundColor: colors.primary }]}
+          style={[styles.tab, activeTab === 'past' && { backgroundColor: colors.textSecondary }]}
           onPress={() => setActiveTab('past')}
         >
           <Text style={[styles.tabText, { color: activeTab === 'past' ? '#fff' : colors.textSecondary }]}>
             Past ({pastBookings.length})
           </Text>
         </TouchableOpacity>
-      </View>
+      </ScrollView>
 
       <ScrollView
         style={styles.scrollView}
@@ -143,7 +163,9 @@ export default function BookingsScreen() {
             <Calendar size={64} color={colors.textSecondary} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No bookings yet</Text>
             <Text style={[styles.emptyDescription, { color: colors.textSecondary }]}>
-              {activeTab === 'active'
+              {activeTab === 'awaiting'
+                ? 'Orders awaiting merchant confirmation will appear here'
+                : activeTab === 'active'
                 ? 'Book a service to get started'
                 : 'Your completed bookings will appear here'}
             </Text>
@@ -194,7 +216,7 @@ export default function BookingsScreen() {
                 </View>
               </View>
 
-              {activeTab === 'active' && (
+              {(activeTab === 'active' || activeTab === 'awaiting') && (
                 <View style={styles.actionButtons}>
                   {booking.status === 'accepted' && booking.providerLocation && (
                     <TouchableOpacity 
@@ -240,17 +262,19 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   tabContainer: {
-    flexDirection: 'row',
+    borderBottomWidth: 1,
+  },
+  tabContent: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 8,
-    borderBottomWidth: 1,
   },
   tab: {
-    flex: 1,
+    paddingHorizontal: 20,
     paddingVertical: 12,
     alignItems: 'center',
     borderRadius: 8,
+    minWidth: 120,
   },
   tabText: {
     fontSize: 15,
