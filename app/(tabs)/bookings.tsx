@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,59 +8,19 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
-  Animated,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
-import { Clock, MapPin, Calendar, Navigation, ArrowRight } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Clock, MapPin, Calendar, Navigation } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserBookings } from '@/hooks/useFirestoreBookings';
 import type { Booking } from '@/types';
 
-const { width } = Dimensions.get('window');
-
-function PulsingDot() {
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  }, [pulseAnim]);
-
-  return (
-    <Animated.View
-      style={{
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#D4AF37',
-        transform: [{ scale: pulseAnim }],
-        marginLeft: 6,
-      }}
-    />
-  );
-}
-
 export default function BookingsScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'awaiting' | 'active' | 'past'>('awaiting');
-  const slideAnim = useRef(new Animated.Value(0)).current;
 
   const userRole = user?.role === 'admin' ? 'customer' : (user?.role || 'customer');
   const { data: bookings = [], isLoading, refetch } = useUserBookings(
@@ -80,18 +40,50 @@ export default function BookingsScreen() {
 
   const displayBookings = activeTab === 'awaiting' ? awaitingBookings : activeTab === 'active' ? activeBookings : pastBookings;
 
-  useEffect(() => {
-    const tabIndex = activeTab === 'awaiting' ? 0 : activeTab === 'active' ? 1 : 2;
-    Animated.spring(slideAnim, {
-      toValue: tabIndex,
-      useNativeDriver: true,
-      tension: 80,
-      friction: 10,
-    }).start();
-  }, [activeTab, slideAnim]);
+  const getStatusColor = (status: Booking['status']) => {
+    switch (status) {
+      case 'pending_confirmation':
+        return colors.warning;
+      case 'accepted':
+        return colors.success;
+      case 'declined':
+        return colors.error;
+      case 'pending':
+        return colors.warning;
+      case 'in-progress':
+        return colors.primary;
+      case 'completed':
+        return colors.textSecondary;
+      case 'cancelled':
+        return colors.error;
+      default:
+        return colors.textSecondary;
+    }
+  };
 
   const getStatusText = (status: Booking['status']) => {
-    return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ').replace(/-/g, ' ');
+    return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
+  };
+
+  const getStatusIcon = (status: Booking['status']) => {
+    switch (status) {
+      case 'pending_confirmation':
+        return '⏳';
+      case 'accepted':
+        return '✓';
+      case 'declined':
+        return '✕';
+      case 'pending':
+        return '⋯';
+      case 'in-progress':
+        return '▶';
+      case 'completed':
+        return '✓';
+      case 'cancelled':
+        return '✕';
+      default:
+        return '';
+    }
   };
 
   const formatPrice = (price: number) => {
@@ -112,68 +104,40 @@ export default function BookingsScreen() {
       />
 
       <View style={[styles.header, { backgroundColor: colors.background }]}>
-        <Text style={[styles.headerTitle, { color: '#D4AF37' }]}>Bookings</Text>
-        <Text style={[styles.headerSubtitle, { color: colors.textSecondary }]}>Manage your service bookings</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Bookings</Text>
       </View>
 
-      <View style={[styles.tabContainer, { backgroundColor: colors.background }]}>
-        <View style={styles.tabWrapper}>
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => setActiveTab('awaiting')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'awaiting' ? '#D4AF37' : colors.textSecondary }]}>
-              Awaiting
-            </Text>
-            {awaitingBookings.length > 0 && (
-              <View style={[styles.badge, { backgroundColor: '#D4AF37' }]}>
-                <Text style={styles.badgeText}>{awaitingBookings.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => setActiveTab('active')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'active' ? '#D4AF37' : colors.textSecondary }]}>
-              Active
-            </Text>
-            {activeBookings.length > 0 && (
-              <View style={[styles.badge, { backgroundColor: '#10b981' }]}>
-                <Text style={styles.badgeText}>{activeBookings.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.tab}
-            onPress={() => setActiveTab('past')}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.tabText, { color: activeTab === 'past' ? '#D4AF37' : colors.textSecondary }]}>
-              Past
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <Animated.View
-          style={[
-            styles.tabIndicator,
-            {
-              backgroundColor: '#D4AF37',
-              transform: [
-                {
-                  translateX: slideAnim.interpolate({
-                    inputRange: [0, 1, 2],
-                    outputRange: [0, (width - 48) / 3, ((width - 48) / 3) * 2],
-                  }),
-                },
-              ],
-              width: (width - 48) / 3,
-            },
-          ]}
-        />
-      </View>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={[styles.tabContainer, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
+        contentContainerStyle={styles.tabContent}
+      >
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'awaiting' && { backgroundColor: colors.warning }]}
+          onPress={() => setActiveTab('awaiting')}
+        >
+          <Text style={[styles.tabText, { color: activeTab === 'awaiting' ? '#fff' : colors.textSecondary }]}>
+            Awaiting ({awaitingBookings.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'active' && { backgroundColor: colors.primary }]}
+          onPress={() => setActiveTab('active')}
+        >
+          <Text style={[styles.tabText, { color: activeTab === 'active' ? '#fff' : colors.textSecondary }]}>
+            Active ({activeBookings.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'past' && { backgroundColor: colors.textSecondary }]}
+          onPress={() => setActiveTab('past')}
+        >
+          <Text style={[styles.tabText, { color: activeTab === 'past' ? '#fff' : colors.textSecondary }]}>
+            Past ({pastBookings.length})
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       <ScrollView
         style={styles.scrollView}
@@ -184,164 +148,98 @@ export default function BookingsScreen() {
           <RefreshControl
             refreshing={isLoading}
             onRefresh={refetch}
-            tintColor="#D4AF37"
-            colors={['#D4AF37']}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
         {isLoading && bookings.length === 0 ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#D4AF37" />
+            <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading bookings...</Text>
           </View>
         ) : displayBookings.length === 0 ? (
           <View style={styles.emptyState}>
-            <View style={[styles.emptyIconContainer, { backgroundColor: `${colors.primary}15` }]}>
-              <Calendar size={48} color="#D4AF37" strokeWidth={1.5} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: colors.text }]}>
-              {activeTab === 'awaiting'
-                ? 'No pending bookings'
-                : activeTab === 'active'
-                ? 'No active bookings'
-                : 'No past bookings'}
-            </Text>
+            <Calendar size={64} color={colors.textSecondary} />
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>No bookings yet</Text>
             <Text style={[styles.emptyDescription, { color: colors.textSecondary }]}>
               {activeTab === 'awaiting'
                 ? 'Orders awaiting merchant confirmation will appear here'
                 : activeTab === 'active'
-                ? 'Your next experience awaits!'
+                ? 'Book a service to get started'
                 : 'Your completed bookings will appear here'}
             </Text>
-            {activeTab === 'active' && (
-              <TouchableOpacity
-                style={[styles.ctaButton, { backgroundColor: '#D4AF37' }]}
-                onPress={() => router.push('/(tabs)/search')}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.ctaButtonText}>Book Now</Text>
-                <ArrowRight size={18} color="#1E1E1E" strokeWidth={2.5} />
-              </TouchableOpacity>
-            )}
           </View>
         ) : (
           displayBookings.map((booking) => (
-            <TouchableOpacity
+            <View
               key={booking.id}
               style={[styles.bookingCard, { backgroundColor: colors.card }]}
-              onPress={() => router.push(`/booking-detail/${booking.id}` as any)}
-              activeOpacity={0.95}
             >
-              <LinearGradient
-                colors={[
-                  booking.status === 'pending_confirmation' ? '#D4AF3708' : 'transparent',
-                  'transparent',
-                ]}
-                style={styles.cardGradient}
-              >
-                <View style={styles.cardHeader}>
-                  <View style={styles.providerSection}>
-                    <Image
-                      source={{ uri: booking.providerImage }}
-                      style={styles.providerImage}
-                    />
-                    <View style={styles.providerInfo}>
-                      <Text style={[styles.providerName, { color: colors.text }]} numberOfLines={1}>
-                        {booking.providerName}
-                      </Text>
-                      <View style={styles.statusRow}>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor:
-                                booking.status === 'pending_confirmation'
-                                  ? '#D4AF3720'
-                                  : booking.status === 'accepted' || booking.status === 'in-progress'
-                                  ? '#10b98120'
-                                  : '#64748b20',
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.statusText,
-                              {
-                                color:
-                                  booking.status === 'pending_confirmation'
-                                    ? '#D4AF37'
-                                    : booking.status === 'accepted' || booking.status === 'in-progress'
-                                    ? '#10b981'
-                                    : '#64748b',
-                              },
-                            ]}
-                          >
-                            {getStatusText(booking.status)}
-                          </Text>
-                        </View>
-                        {booking.status === 'pending_confirmation' && <PulsingDot />}
-                      </View>
-                    </View>
+              <View style={styles.cardContent}>
+                <View style={styles.leftColumn}>
+                  <Image
+                    source={{ uri: booking.providerImage }}
+                    style={styles.providerImage}
+                  />
+                  <View style={styles.bookingInfo}>
+                    <Text style={[styles.providerName, { color: colors.text }]}>{booking.providerName}</Text>
+                    <Text style={[styles.service, { color: colors.text }]}>{booking.service}</Text>
+                    <Text style={[styles.category, { color: colors.textSecondary }]}>{booking.category}</Text>
                   </View>
-                  <Text style={[styles.price, { color: '#D4AF37' }]}>{formatPrice(booking.price)}</Text>
                 </View>
-
-                <View style={styles.serviceSection}>
-                  <Text style={[styles.service, { color: colors.text }]} numberOfLines={1}>
-                    {booking.service}
-                  </Text>
-                  <Text style={[styles.category, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {booking.category}
-                  </Text>
-                </View>
-
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-                <View style={styles.detailsGrid}>
-                  <View style={styles.detailItem}>
-                    <Calendar size={14} color="#D4AF37" strokeWidth={2} />
-                    <Text style={[styles.detailText, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {booking.date}
+                
+                <View style={styles.rightColumn}>
+                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(booking.status) + '20' }]}>
+                    <Text style={[styles.statusText, { color: getStatusColor(booking.status) }]}>
+                      {getStatusText(booking.status)} {getStatusIcon(booking.status)}
                     </Text>
                   </View>
-                  <View style={styles.detailItem}>
-                    <Clock size={14} color="#D4AF37" strokeWidth={2} />
-                    <Text style={[styles.detailText, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {booking.time}
-                    </Text>
-                  </View>
+                  <Text style={[styles.price, { color: colors.text }]}>{formatPrice(booking.price)}</Text>
                 </View>
+              </View>
 
-                <View style={styles.locationRow}>
-                  <MapPin size={14} color="#D4AF37" strokeWidth={2} />
-                  <Text style={[styles.locationText, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {booking.address}
-                  </Text>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+              <View style={styles.bookingDetails}>
+                <View style={styles.detailRow}>
+                  <Calendar size={16} color={colors.textSecondary} />
+                  <Text style={[styles.detailText, { color: colors.textSecondary }]}>{booking.date}</Text>
                 </View>
+                <View style={styles.detailRow}>
+                  <Clock size={16} color={colors.textSecondary} />
+                  <Text style={[styles.detailText, { color: colors.textSecondary }]}>{booking.time}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <MapPin size={16} color={colors.textSecondary} />
+                  <Text style={[styles.detailText, { color: colors.textSecondary }]} numberOfLines={2}>{booking.address}</Text>
+                </View>
+              </View>
 
-                {(activeTab === 'active' || activeTab === 'awaiting') && (
-                  <View style={styles.actionRow}>
-                    {booking.status === 'accepted' && booking.providerLocation && (
-                      <TouchableOpacity
-                        style={[styles.trackButton, { borderColor: '#10b981' }]}
-                        onPress={(e) => {
-                          e.stopPropagation();
-                          router.push(`/tracking/${booking.id}` as any);
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <Navigation size={16} color="#10b981" strokeWidth={2.5} />
-                        <Text style={[styles.trackButtonText, { color: '#10b981' }]}>Track</Text>
-                      </TouchableOpacity>
-                    )}
-                    <View style={styles.viewDetailsButton}>
-                      <Text style={[styles.viewDetailsText, { color: '#D4AF37' }]}>View Details</Text>
-                      <ArrowRight size={16} color="#D4AF37" strokeWidth={2.5} />
-                    </View>
-                  </View>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
+              {(activeTab === 'active' || activeTab === 'awaiting') && (
+                <View style={styles.actionButtons}>
+                  {booking.status === 'accepted' && booking.providerLocation && (
+                    <TouchableOpacity 
+                      style={[styles.trackButton, { backgroundColor: colors.secondary, borderColor: colors.secondary }]}
+                      onPress={() => router.push(`/tracking/${booking.id}` as any)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Track provider"
+                    >
+                      <Navigation size={18} color="#fff" />
+                      <Text style={styles.trackButtonText}>Track</Text>
+                    </TouchableOpacity>
+                  )}
+                  <TouchableOpacity 
+                    style={[styles.actionButton, { backgroundColor: colors.primary }]}
+                    onPress={() => router.push(`/booking-detail/${booking.id}` as any)}
+                    accessibilityRole="button"
+                    accessibilityLabel="View booking details"
+                  >
+                    <Text style={styles.actionButtonText}>View Details</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
           ))
         )}
       </ScrollView>
@@ -354,113 +252,56 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 20,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   headerTitle: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '700' as const,
-    letterSpacing: -1,
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    fontWeight: '400' as const,
-    letterSpacing: 0.2,
+    letterSpacing: -0.5,
   },
   tabContainer: {
-    paddingHorizontal: 24,
-    marginBottom: 8,
+    borderBottomWidth: 1,
   },
-  tabWrapper: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingBottom: 12,
+  tabContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
   },
   tab: {
-    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 120,
   },
   tabText: {
     fontSize: 15,
     fontWeight: '600' as const,
-    letterSpacing: 0.3,
-  },
-  badge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 6,
-    paddingHorizontal: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700' as const,
-    color: '#1E1E1E',
-  },
-  tabIndicator: {
-    height: 3,
-    borderRadius: 1.5,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 100,
   },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 100,
-    paddingHorizontal: 32,
-  },
-  emptyIconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
+    paddingVertical: 80,
   },
   emptyTitle: {
-    fontSize: 22,
-    fontWeight: '700' as const,
+    fontSize: 20,
+    fontWeight: '600' as const,
+    marginTop: 16,
     marginBottom: 8,
-    letterSpacing: -0.3,
   },
   emptyDescription: {
-    fontSize: 15,
+    fontSize: 14,
     textAlign: 'center' as const,
-    lineHeight: 22,
-    marginBottom: 32,
-  },
-  ctaButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 8,
-    shadowColor: '#D4AF37',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  ctaButtonText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#1E1E1E',
-    letterSpacing: 0.3,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -473,146 +314,121 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
   },
   bookingCard: {
-    borderRadius: 20,
-    marginBottom: 16,
-    overflow: 'hidden',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    width: '100%',
   },
-  cardGradient: {
-    padding: 20,
-  },
-  cardHeader: {
+  cardContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 16,
   },
-  providerSection: {
+  leftColumn: {
     flexDirection: 'row',
     flex: 1,
     marginRight: 12,
+  },
+  rightColumn: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    minHeight: 56,
   },
   providerImage: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     marginRight: 12,
-    borderWidth: 2,
-    borderColor: '#D4AF3720',
   },
-  providerInfo: {
+  bookingInfo: {
     flex: 1,
-    justifyContent: 'center',
   },
   providerName: {
-    fontSize: 17,
-    fontWeight: '700' as const,
-    marginBottom: 6,
-    letterSpacing: -0.2,
+    fontSize: 16,
+    fontWeight: '600' as const,
+    marginBottom: 2,
   },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  service: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    marginBottom: 2,
+  },
+  category: {
+    fontSize: 12,
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginBottom: 8,
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '700' as const,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase' as const,
-  },
-  price: {
-    fontSize: 20,
-    fontWeight: '800' as const,
-    letterSpacing: -0.5,
-  },
-  serviceSection: {
-    marginBottom: 16,
-  },
-  service: {
-    fontSize: 15,
     fontWeight: '600' as const,
-    marginBottom: 4,
-    letterSpacing: -0.1,
-  },
-  category: {
-    fontSize: 13,
-    fontWeight: '500' as const,
+    letterSpacing: 0.3,
   },
   divider: {
     height: 1,
     marginBottom: 12,
   },
-  detailsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-    gap: 16,
+  bookingDetails: {
+    gap: 8,
+    marginBottom: 12,
   },
-  detailItem: {
+  detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    flex: 1,
+    gap: 8,
   },
   detailText: {
     fontSize: 13,
     flex: 1,
-    color: '#64748b',
   },
-  locationRow: {
+  price: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    textAlign: 'right' as const,
+  },
+  actionButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 8,
-    marginBottom: 14,
   },
-  locationText: {
-    fontSize: 13,
-    color: '#64748b',
+  actionButton: {
     flex: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    minHeight: 44,
   },
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 12,
+  actionButtonText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#fff',
+    letterSpacing: 0.2,
   },
   trackButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 12,
+    minHeight: 44,
     borderWidth: 2,
-    backgroundColor: '#fff',
   },
   trackButtonText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    letterSpacing: 0.2,
-  },
-  viewDetailsButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-  },
-  viewDetailsText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#fff',
     letterSpacing: 0.2,
   },
 });
