@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -25,8 +25,7 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-
-import { mockBookings } from '@/mocks/services';
+import { getBooking, updateBookingStatus } from '@/services/firestore/bookings';
 import type { Booking } from '@/types';
 
 const STATUS_CONFIG = {
@@ -68,10 +67,41 @@ export default function BookingDetailScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   
-  const [booking, setBooking] = useState<Booking | null>(
-    mockBookings.find(b => b.id === id) || null
-  );
+  const [booking, setBooking] = useState<Booking | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadBooking();
+  }, [id]);
+
+  const loadBooking = async () => {
+    if (!id || typeof id !== 'string') return;
+    
+    try {
+      setLoading(true);
+      console.log('[BookingDetail] Loading booking:', id);
+      const bookingData = await getBooking(id);
+      console.log('[BookingDetail] Loaded booking:', bookingData);
+      setBooking(bookingData);
+    } catch (error) {
+      console.error('[BookingDetail] Error loading booking:', error);
+      Alert.alert('Error', 'Failed to load booking details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <Stack.Screen options={{ title: 'Booking Details' }} />
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </View>
+    );
+  }
 
   if (!booking) {
     return (
@@ -91,14 +121,26 @@ export default function BookingDetailScreen() {
   const isProvider = user?.role === 'provider';
 
   const handleAccept = async () => {
-    setActionLoading('accept');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setBooking({ ...booking, status: 'confirmed' });
-    setActionLoading(null);
-    Alert.alert('Success', 'Booking accepted successfully');
+    if (!booking?.id) return;
+    
+    try {
+      setActionLoading('accept');
+      console.log('[BookingDetail] Accepting booking:', booking.id);
+      await updateBookingStatus(booking.id, 'confirmed');
+      setBooking({ ...booking, status: 'confirmed' });
+      Alert.alert('Success', 'Booking accepted successfully');
+      console.log('[BookingDetail] Booking accepted');
+    } catch (error) {
+      console.error('[BookingDetail] Error accepting booking:', error);
+      Alert.alert('Error', 'Failed to accept booking. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleDecline = async () => {
+    if (!booking?.id) return;
+    
     Alert.alert(
       'Decline Booking',
       'Are you sure you want to decline this booking?',
@@ -108,11 +150,19 @@ export default function BookingDetailScreen() {
           text: 'Decline',
           style: 'destructive',
           onPress: async () => {
-            setActionLoading('decline');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setBooking({ ...booking, status: 'cancelled' });
-            setActionLoading(null);
-            Alert.alert('Declined', 'Booking has been declined');
+            try {
+              setActionLoading('decline');
+              console.log('[BookingDetail] Declining booking:', booking.id);
+              await updateBookingStatus(booking.id, 'cancelled');
+              setBooking({ ...booking, status: 'cancelled' });
+              Alert.alert('Declined', 'Booking has been declined');
+              console.log('[BookingDetail] Booking declined');
+            } catch (error) {
+              console.error('[BookingDetail] Error declining booking:', error);
+              Alert.alert('Error', 'Failed to decline booking. Please try again.');
+            } finally {
+              setActionLoading(null);
+            }
           },
         },
       ]
@@ -120,22 +170,44 @@ export default function BookingDetailScreen() {
   };
 
   const handleStartWork = async () => {
-    setActionLoading('start');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setBooking({ ...booking, status: 'in-progress' });
-    setActionLoading(null);
-    Alert.alert('Started', 'Work has been started');
+    if (!booking?.id) return;
+    
+    try {
+      setActionLoading('start');
+      console.log('[BookingDetail] Starting work:', booking.id);
+      await updateBookingStatus(booking.id, 'in-progress');
+      setBooking({ ...booking, status: 'in-progress' });
+      Alert.alert('Started', 'Work has been started');
+      console.log('[BookingDetail] Work started');
+    } catch (error) {
+      console.error('[BookingDetail] Error starting work:', error);
+      Alert.alert('Error', 'Failed to start work. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleComplete = async () => {
-    setActionLoading('complete');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setBooking({ ...booking, status: 'completed' });
-    setActionLoading(null);
-    Alert.alert('Completed', 'Service has been marked as completed');
+    if (!booking?.id) return;
+    
+    try {
+      setActionLoading('complete');
+      console.log('[BookingDetail] Completing booking:', booking.id);
+      await updateBookingStatus(booking.id, 'completed');
+      setBooking({ ...booking, status: 'completed' });
+      Alert.alert('Completed', 'Service has been marked as completed');
+      console.log('[BookingDetail] Booking completed');
+    } catch (error) {
+      console.error('[BookingDetail] Error completing booking:', error);
+      Alert.alert('Error', 'Failed to complete booking. Please try again.');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleCancel = async () => {
+    if (!booking?.id) return;
+    
     Alert.alert(
       'Cancel Booking',
       'Are you sure you want to cancel this booking?',
@@ -145,11 +217,19 @@ export default function BookingDetailScreen() {
           text: 'Yes, Cancel',
           style: 'destructive',
           onPress: async () => {
-            setActionLoading('cancel');
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setBooking({ ...booking, status: 'cancelled' });
-            setActionLoading(null);
-            Alert.alert('Cancelled', 'Booking has been cancelled');
+            try {
+              setActionLoading('cancel');
+              console.log('[BookingDetail] Cancelling booking:', booking.id);
+              await updateBookingStatus(booking.id, 'cancelled');
+              setBooking({ ...booking, status: 'cancelled' });
+              Alert.alert('Cancelled', 'Booking has been cancelled');
+              console.log('[BookingDetail] Booking cancelled');
+            } catch (error) {
+              console.error('[BookingDetail] Error cancelling booking:', error);
+              Alert.alert('Error', 'Failed to cancel booking. Please try again.');
+            } finally {
+              setActionLoading(null);
+            }
           },
         },
       ]
