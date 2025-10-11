@@ -25,21 +25,27 @@ import {
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { getBooking, updateBookingStatus } from '@/services/firestore/bookings';
+import { updateBookingStatus, subscribeToBooking } from '@/services/firestore/bookings';
 import type { Booking } from '@/types';
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<Booking['status'], { label: string; color: string; icon: any; description: string }> = {
   pending: {
     label: 'Pending',
     color: '#f59e0b',
     icon: Clock,
     description: 'Waiting for provider confirmation',
   },
-  confirmed: {
-    label: 'Confirmed',
+  accepted: {
+    label: 'Accepted',
     color: '#3b82f6',
     icon: CheckCircle,
     description: 'Provider has confirmed your booking',
+  },
+  declined: {
+    label: 'Declined',
+    color: '#ef4444',
+    icon: XCircle,
+    description: 'Provider has declined your booking',
   },
   'in-progress': {
     label: 'In Progress',
@@ -72,25 +78,22 @@ export default function BookingDetailScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadBooking();
+    if (!id || typeof id !== 'string') return;
+
+    console.log('[BookingDetail] Setting up real-time booking listener');
+    const unsubscribe = subscribeToBooking(id, (bookingData) => {
+      console.log('[BookingDetail] Received booking update:', bookingData);
+      setBooking(bookingData);
+      setLoading(false);
+    });
+
+    return () => {
+      console.log('[BookingDetail] Cleaning up booking listener');
+      unsubscribe();
+    };
   }, [id]);
 
-  const loadBooking = async () => {
-    if (!id || typeof id !== 'string') return;
-    
-    try {
-      setLoading(true);
-      console.log('[BookingDetail] Loading booking:', id);
-      const bookingData = await getBooking(id);
-      console.log('[BookingDetail] Loaded booking:', bookingData);
-      setBooking(bookingData);
-    } catch (error) {
-      console.error('[BookingDetail] Error loading booking:', error);
-      Alert.alert('Error', 'Failed to load booking details');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   if (loading) {
     return (
@@ -126,8 +129,7 @@ export default function BookingDetailScreen() {
     try {
       setActionLoading('accept');
       console.log('[BookingDetail] Accepting booking:', booking.id);
-      await updateBookingStatus(booking.id, 'confirmed');
-      setBooking({ ...booking, status: 'confirmed' });
+      await updateBookingStatus(booking.id, 'accepted');
       Alert.alert('Success', 'Booking accepted successfully');
       console.log('[BookingDetail] Booking accepted');
     } catch (error) {
@@ -153,8 +155,7 @@ export default function BookingDetailScreen() {
             try {
               setActionLoading('decline');
               console.log('[BookingDetail] Declining booking:', booking.id);
-              await updateBookingStatus(booking.id, 'cancelled');
-              setBooking({ ...booking, status: 'cancelled' });
+              await updateBookingStatus(booking.id, 'declined');
               Alert.alert('Declined', 'Booking has been declined');
               console.log('[BookingDetail] Booking declined');
             } catch (error) {
@@ -176,7 +177,6 @@ export default function BookingDetailScreen() {
       setActionLoading('start');
       console.log('[BookingDetail] Starting work:', booking.id);
       await updateBookingStatus(booking.id, 'in-progress');
-      setBooking({ ...booking, status: 'in-progress' });
       Alert.alert('Started', 'Work has been started');
       console.log('[BookingDetail] Work started');
     } catch (error) {
@@ -194,7 +194,6 @@ export default function BookingDetailScreen() {
       setActionLoading('complete');
       console.log('[BookingDetail] Completing booking:', booking.id);
       await updateBookingStatus(booking.id, 'completed');
-      setBooking({ ...booking, status: 'completed' });
       Alert.alert('Completed', 'Service has been marked as completed');
       console.log('[BookingDetail] Booking completed');
     } catch (error) {
@@ -221,7 +220,6 @@ export default function BookingDetailScreen() {
               setActionLoading('cancel');
               console.log('[BookingDetail] Cancelling booking:', booking.id);
               await updateBookingStatus(booking.id, 'cancelled');
-              setBooking({ ...booking, status: 'cancelled' });
               Alert.alert('Cancelled', 'Booking has been cancelled');
               console.log('[BookingDetail] Booking cancelled');
             } catch (error) {
@@ -300,7 +298,7 @@ export default function BookingDetailScreen() {
       );
     }
 
-    if (booking.status === 'confirmed') {
+    if (booking.status === 'accepted') {
       return (
         <TouchableOpacity
           style={[styles.primaryButton, { backgroundColor: colors.primary }]}
@@ -342,7 +340,7 @@ export default function BookingDetailScreen() {
   };
 
   const renderCustomerActions = () => {
-    if (booking.status === 'pending' || booking.status === 'confirmed') {
+    if (booking.status === 'pending' || booking.status === 'accepted') {
       return (
         <TouchableOpacity
           style={[styles.primaryButton, { backgroundColor: colors.error }]}

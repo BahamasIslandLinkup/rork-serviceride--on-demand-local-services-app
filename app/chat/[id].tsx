@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,20 +15,44 @@ import {
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { Send, Paperclip, X, Video } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { serviceProviders, mockMessages } from '@/mocks/services';
+import { serviceProviders } from '@/mocks/services';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { sendMessage, subscribeToMessages } from '@/services/firestore/messages';
 import type { Message, MessageAttachment } from '@/types';
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams();
   const { colors } = useTheme();
+  const { user } = useAuth();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [attachments, setAttachments] = useState<MessageAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(true);
   const scrollViewRef = useRef<ScrollView>(null);
 
   const provider = serviceProviders.find((p) => p.id === id);
+
+  useEffect(() => {
+    if (!user?.id || !id) return;
+
+    console.log('[Chat] Setting up real-time message listener');
+    const unsubscribe = subscribeToMessages(
+      user.id,
+      id as string,
+      (newMessages) => {
+        console.log('[Chat] Received messages:', newMessages.length);
+        setMessages(newMessages);
+        setIsLoadingMessages(false);
+      }
+    );
+
+    return () => {
+      console.log('[Chat] Cleaning up message listener');
+      unsubscribe();
+    };
+  }, [user?.id, id]);
 
   if (!provider) {
     return null;
@@ -71,31 +95,43 @@ export default function ChatScreen() {
 
   const handleSend = async () => {
     if (!message.trim() && attachments.length === 0) return;
+    if (!user?.id) {
+      Alert.alert('Error', 'You must be logged in to send messages');
+      return;
+    }
 
     setIsUploading(true);
 
-    try {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        senderId: 'user1',
-        receiverId: id as string,
-        text: message.trim() || undefined,
-        attachments: attachments.length > 0 ? attachments : undefined,
-        timestamp: new Date().toISOString(),
-        read: false,
-        uploadStatus: 'success',
-      };
+    const messageText = message.trim();
+    const messageAttachments = [...attachments];
+    
+    setMessage('');
+    setAttachments([]);
 
-      setMessages([...messages, newMessage]);
-      setMessage('');
-      setAttachments([]);
+    try {
+      await sendMessage(
+        {
+          senderId: user.id,
+          receiverId: id as string,
+          text: messageText || undefined,
+          attachments: messageAttachments.length > 0 ? messageAttachments : undefined,
+          read: false,
+        },
+        (progress) => {
+          console.log('[Chat] Upload progress:', progress);
+        }
+      );
+      
+      console.log('[Chat] Message sent successfully');
       
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
+      console.error('[Chat] Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+      setMessage(messageText);
+      setAttachments(messageAttachments);
     } finally {
       setIsUploading(false);
     }
@@ -123,8 +159,19 @@ export default function ChatScreen() {
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
       >
-        {messages.map((msg) => {
-          const isMe = msg.senderId === 'user1';
+        {isLoadingMessages && messages.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading messages...</Text>
+          </View>
+        ) : messages.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No messages yet</Text>
+            <Text style={[styles.emptySubtext, { color: colors.textLight }]}>Start the conversation!</Text>
+          </View>
+        ) : (
+          messages.map((msg) => {
+          const isMe = msg.senderId === user?.id;
           return (
             <View
               key={msg.id}
@@ -196,7 +243,8 @@ export default function ChatScreen() {
               </View>
             </View>
           );
-        })}
+        })
+        )}
       </ScrollView>
 
       <View style={[styles.inputContainer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
@@ -404,5 +452,31 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    fontWeight: '500' as const,
   },
 });

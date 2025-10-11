@@ -11,6 +11,7 @@ import {
   orderBy,
   limit,
   Timestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { Booking } from '@/types';
@@ -124,4 +125,59 @@ export async function deleteBooking(bookingId: string): Promise<void> {
     console.error('Error deleting booking:', error);
     throw new Error('Failed to delete booking');
   }
+}
+
+export function subscribeToBooking(
+  bookingId: string,
+  callback: (booking: Booking | null) => void
+): () => void {
+  const docRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+  
+  const unsubscribe = onSnapshot(
+    docRef,
+    (docSnap) => {
+      if (docSnap.exists()) {
+        callback({ id: docSnap.id, ...docSnap.data() } as Booking);
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      console.error('[Firestore] Error in booking subscription:', error);
+    }
+  );
+  
+  return unsubscribe;
+}
+
+export function subscribeToUserBookings(
+  userId: string,
+  role: 'customer' | 'provider',
+  callback: (bookings: Booking[]) => void,
+  status?: string
+): () => void {
+  const bookingsRef = collection(db, BOOKINGS_COLLECTION);
+  let q = query(
+    bookingsRef,
+    where(role === 'customer' ? 'clientId' : 'providerId', '==', userId),
+    orderBy('createdAt', 'desc'),
+    limit(50)
+  );
+
+  if (status) {
+    q = query(q, where('status', '==', status));
+  }
+
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const bookings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Booking));
+      callback(bookings);
+    },
+    (error) => {
+      console.error('[Firestore] Error in bookings subscription:', error);
+    }
+  );
+
+  return unsubscribe;
 }

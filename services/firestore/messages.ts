@@ -11,18 +11,91 @@ import {
   Timestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import type { Message, Conversation } from '@/types';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/config/firebase';
+import type { Message, Conversation, MessageAttachment } from '@/types';
 
 const MESSAGES_COLLECTION = 'messages';
 const CONVERSATIONS_COLLECTION = 'conversations';
 
-export async function sendMessage(message: Omit<Message, 'id' | 'timestamp'>): Promise<string> {
+export async function uploadMessageAttachment(
+  file: { uri: string; type: string; name?: string },
+  userId: string,
+  onProgress?: (progress: number) => void
+): Promise<{ uri: string; thumbnailUri?: string }> {
   try {
+    const response = await fetch(file.uri);
+    const blob = await response.blob();
+    
+    const timestamp = Date.now();
+    const fileName = file.name || `${timestamp}.${file.type.split('/')[1]}`;
+    const storageRef = ref(storage, `messages/${userId}/${timestamp}_${fileName}`);
+    
+    const uploadTask = uploadBytesResumable(storageRef, blob, {
+      contentType: file.type,
+    });
+    
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          onProgress?.(progress);
+        },
+        (error) => {
+          console.error('Upload error:', error);
+          reject(error);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({ uri: downloadURL });
+        }
+      );
+    });
+  } catch (error) {
+    console.error('Error uploading attachment:', error);
+    throw new Error('Failed to upload attachment');
+  }
+}
+
+export async function sendMessage(
+  message: Omit<Message, 'id' | 'timestamp'>,
+  onUploadProgress?: (progress: number) => void
+): Promise<string> {
+  try {
+    let uploadedAttachments: MessageAttachment[] | undefined;
+    
+    if (message.attachments && message.attachments.length > 0) {
+      uploadedAttachments = [];
+      
+      for (let i = 0; i < message.attachments.length; i++) {
+        const attachment = message.attachments[i];
+        const { uri } = await uploadMessageAttachment(
+          {
+            uri: attachment.uri,
+            type: attachment.mimeType,
+            name: `attachment_${i}`,
+          },
+          message.senderId,
+          (progress) => {
+            const totalProgress = ((i + progress / 100) / message.attachments!.length) * 100;
+            onUploadProgress?.(totalProgress);
+          }
+        );
+        
+        uploadedAttachments.push({
+          ...attachment,
+          uri,
+        });
+      }
+    }
+    
     const docRef = await addDoc(collection(db, MESSAGES_COLLECTION), {
       ...message,
+      attachments: uploadedAttachments,
       timestamp: Timestamp.now(),
     });
+    
     return docRef.id;
   } catch (error) {
     console.error('Error sending message:', error);
