@@ -26,10 +26,17 @@ function RootLayoutNav() {
         headerShadowVisible: false,
       }}
     >
+      <Stack.Screen name="auth/login" options={{ headerShown: false }} />
+      <Stack.Screen name="auth/signup" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="category/[id]" options={{ headerShown: true }} />
       <Stack.Screen name="provider/[id]" options={{ headerShown: true }} />
-      <Stack.Screen name="booking/[id]" options={{ headerShown: true }} />
+      <Stack.Screen name="booking/[id]" options={{ headerShown: true, title: "Book Service" }} />
+      <Stack.Screen name="booking-detail/[id]" options={{ headerShown: true, title: "Booking Details" }} />
+      <Stack.Screen name="checkout/[bookingId]" options={{ headerShown: true, title: "Checkout" }} />
+      <Stack.Screen name="payment-methods" options={{ headerShown: true, title: "Payment Methods" }} />
+      <Stack.Screen name="review/[bookingId]" options={{ headerShown: true, presentation: "modal", title: "Rate & Review" }} />
+      <Stack.Screen name="notifications" options={{ headerShown: true, title: "Notifications" }} />
     </Stack>
   );
 }
