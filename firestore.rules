@@ -25,7 +25,8 @@ service cloud.firestore {
       );
       
       allow create: if isAuthenticated() && 
-        request.resource.data.clientId == request.auth.uid;
+        request.resource.data.clientId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['clientId', 'providerId', 'status', 'price']);
       
       allow update: if isAuthenticated() && (
         resource.data.clientId == request.auth.uid ||
