@@ -2,20 +2,6 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth, Auth, connectAuthEmulator } from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
-import { Platform } from 'react-native';
-
-let analytics: any = null;
-
-if (Platform.OS === 'web') {
-  import('firebase/analytics').then((module) => {
-    if (app) {
-      analytics = module.getAnalytics(app);
-      console.log('✅ Firebase Analytics initialized (web only)');
-    }
-  }).catch((error) => {
-    console.warn('⚠️ Firebase Analytics not available:', error);
-  });
-}
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'demo-api-key',
@@ -24,6 +10,7 @@ const firebaseConfig = {
   storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'demo-project.appspot.com',
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '123456789',
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:123456789:web:abcdef',
+  measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 const isDevelopment = __DEV__;
@@ -56,6 +43,8 @@ try {
   console.error('❌ Firebase initialization failed:', error);
   throw error;
 }
+
+let analytics: any = null;
 
 export { app, db, auth, storage, analytics };
 export default app;
