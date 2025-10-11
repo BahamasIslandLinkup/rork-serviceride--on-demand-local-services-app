@@ -281,12 +281,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [user]);
 
-  const getRememberedEmail = useCallback(async () => {
+  const getRememberedEmail = async () => {
     try {
       const [rememberMe, email] = await Promise.all([
         secureStorage.getItem(REMEMBER_ME_KEY),
         secureStorage.getItem(REMEMBER_EMAIL_KEY),
       ]);
+      console.log('[Auth] Remember me check:', { rememberMe, hasEmail: !!email });
       if (rememberMe === 'true' && email) {
         return email;
       }
@@ -295,7 +296,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       console.error('[Auth] Failed to get remembered email:', error);
       return null;
     }
-  }, []);
+  };
 
   return useMemo(
     () => ({
@@ -311,6 +312,6 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       switchRole,
       getRememberedEmail,
     }),
-    [user, isLoading, isAuthenticated, login, signup, logout, updateUser, switchRole, getRememberedEmail]
+    [user, isLoading, isAuthenticated, login, signup, logout, updateUser, switchRole]
   );
 });

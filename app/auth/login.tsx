@@ -35,14 +35,19 @@ export default function LoginScreen() {
 
   useEffect(() => {
     const loadRememberedEmail = async () => {
-      const rememberedEmail = await getRememberedEmail();
-      if (rememberedEmail) {
-        setEmail(rememberedEmail);
-        setRememberMe(true);
+      try {
+        const rememberedEmail = await getRememberedEmail();
+        if (rememberedEmail) {
+          setEmail(rememberedEmail);
+          setRememberMe(true);
+        }
+      } catch (error) {
+        console.error('[Login] Failed to load remembered email:', error);
       }
     };
     loadRememberedEmail();
-  }, [getRememberedEmail]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validateEmail = (text: string) => {
     setEmail(text);
