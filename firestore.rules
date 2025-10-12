@@ -19,15 +19,9 @@ service cloud.firestore {
     }
     
     match /bookings/{bookingId} {
-      allow get: if isAuthenticated() && (
+      allow read: if isAuthenticated() && (
         resource.data.clientId == request.auth.uid ||
         resource.data.providerId == request.auth.uid
-      );
-      
-      allow list: if isAuthenticated() && (
-        request.query.limit <= 100 &&
-        (resource.data.clientId == request.auth.uid ||
-         resource.data.providerId == request.auth.uid)
       );
       
       allow create: if isAuthenticated() && 
