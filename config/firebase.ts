@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { initializeAuth, getAuth, Auth, connectAuthEmulator, browserLocalPersistence, indexedDBLocalPersistence } from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
 import { Platform, LogBox } from 'react-native';
@@ -16,6 +16,10 @@ const firebaseConfig = {
 
 const isDevelopment = __DEV__;
 const useEmulators = isDevelopment && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS === 'true';
+const firestoreDatabaseId =
+  process.env.EXPO_PUBLIC_FIREBASE_DATABASE_ID ||
+  process.env.EXPO_PUBLIC_FIRESTORE_DATABASE_ID ||
+  'ondemandservice';
 
 LogBox.ignoreLogs(['@firebase/auth']);
 
@@ -28,11 +32,22 @@ console.log('🔑 Firebase Config Check:');
 console.log('API Key present:', !!firebaseConfig.apiKey);
 console.log('API Key length:', firebaseConfig.apiKey?.length);
 console.log('Project ID:', firebaseConfig.projectId);
+console.log('Firestore Database ID:', firestoreDatabaseId);
 
 try {
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  const isNewAppInstance = getApps().length === 0;
+  app = isNewAppInstance ? initializeApp(firebaseConfig) : getApp();
   
-  db = getFirestore(app);
+  db = isNewAppInstance
+    ? initializeFirestore(
+        app,
+        {
+          experimentalAutoDetectLongPolling: true,
+          useFetchStreams: false,
+        },
+        firestoreDatabaseId === '(default)' ? undefined : firestoreDatabaseId
+      )
+    : getFirestore(app, firestoreDatabaseId === '(default)' ? undefined : firestoreDatabaseId);
   
   try {
     if (Platform.OS === 'web') {

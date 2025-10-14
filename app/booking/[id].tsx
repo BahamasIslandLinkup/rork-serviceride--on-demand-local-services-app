@@ -69,7 +69,7 @@ export default function BookingScreen() {
 
       const result = await createBooking({
         clientId: user.id,
-        clientName: user.name,
+        clientName: user.name?.trim() || user.email || 'Customer',
         ...(user.avatar && { clientImage: user.avatar }),
         providerId: provider.id,
         providerName: provider.name,

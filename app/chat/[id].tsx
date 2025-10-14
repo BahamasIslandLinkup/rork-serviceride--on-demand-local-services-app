@@ -35,8 +35,12 @@ export default function ChatScreen() {
   const provider = serviceProviders.find((p) => p.id === id);
 
   useEffect(() => {
-    if (!user?.id || !id) return;
+    if (!user?.id || !id) {
+      setIsLoadingMessages(false);
+      return;
+    }
 
+    setIsLoadingMessages(true);
     console.log('[Chat] Setting up real-time message listener');
     const unsubscribe = subscribeToMessages(
       user.id,
@@ -44,6 +48,9 @@ export default function ChatScreen() {
       (newMessages) => {
         console.log('[Chat] Received messages:', newMessages.length);
         setMessages(newMessages);
+        setIsLoadingMessages(false);
+      },
+      () => {
         setIsLoadingMessages(false);
       }
     );

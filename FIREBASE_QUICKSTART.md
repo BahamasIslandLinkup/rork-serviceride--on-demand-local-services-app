@@ -98,16 +98,22 @@ Enable:
 
 ---
 
-### 4. Create Firestore Indexes (If Needed)
+### 4. Deploy Firestore Indexes
 
-Some complex queries may require composite indexes. Firebase will show you the exact index to create when you run a query that needs one.
+All composite indexes required by the app are checked into `firestore.indexes.json`. Deploy them with:
 
-Go to Firebase Console → Firestore Database → Indexes
+```bash
+firebase deploy --only firestore:indexes
+```
 
-Common indexes you might need:
-- Collection: `bookings`, Fields: `customerId` (Ascending), `date` (Descending)
-- Collection: `bookings`, Fields: `providerId` (Ascending), `date` (Descending)
-- Collection: `messages`, Fields: `conversationId` (Ascending), `createdAt` (Ascending)
+The file already defines indexes for the composite queries used throughout the app, including:
+- `bookings`: filters by `clientId`/`providerId` with `status` and sorts by `createdAt`
+- `messages`: sender/receiver conversation queries ordered by `timestamp` (asc & desc)
+- `conversations`: participant membership ordered by `lastMessageTime`
+- `disputes`: customer/provider lookups ordered by `createdAt`
+- `disputeMessages`: dispute thread lookups ordered by `timestamp`
+
+If a new query asks for an index at runtime, use the link Firestore provides, then mirror the definition in `firestore.indexes.json` so it can be deployed alongside the rest of the project.
 
 ---
 

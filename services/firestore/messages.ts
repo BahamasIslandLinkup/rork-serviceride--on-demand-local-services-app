@@ -63,13 +63,14 @@ export async function sendMessage(
   onUploadProgress?: (progress: number) => void
 ): Promise<string> {
   try {
+    const { attachments, ...messageWithoutAttachments } = message;
     let uploadedAttachments: MessageAttachment[] | undefined;
     
-    if (message.attachments && message.attachments.length > 0) {
+    if (attachments && attachments.length > 0) {
       uploadedAttachments = [];
       
-      for (let i = 0; i < message.attachments.length; i++) {
-        const attachment = message.attachments[i];
+      for (let i = 0; i < attachments.length; i++) {
+        const attachment = attachments[i];
         const { uri } = await uploadMessageAttachment(
           {
             uri: attachment.uri,
@@ -78,7 +79,7 @@ export async function sendMessage(
           },
           message.senderId,
           (progress) => {
-            const totalProgress = ((i + progress / 100) / message.attachments!.length) * 100;
+            const totalProgress = ((i + progress / 100) / attachments!.length) * 100;
             onUploadProgress?.(totalProgress);
           }
         );
@@ -89,13 +90,16 @@ export async function sendMessage(
         });
       }
     }
-    
-    const docRef = await addDoc(collection(db, MESSAGES_COLLECTION), {
-      ...message,
-      attachments: uploadedAttachments,
+    const docData: Record<string, any> = {
+      ...messageWithoutAttachments,
       timestamp: Timestamp.now(),
-    });
+    };
+
+    if (uploadedAttachments && uploadedAttachments.length > 0) {
+      docData.attachments = uploadedAttachments;
+    }
     
+    const docRef = await addDoc(collection(db, MESSAGES_COLLECTION), docData);
     return docRef.id;
   } catch (error) {
     console.error('Error sending message:', error);
@@ -154,7 +158,8 @@ export async function getConversationMessages(
 export function subscribeToMessages(
   userId: string,
   otherUserId: string,
-  callback: (messages: Message[]) => void
+  callback: (messages: Message[]) => void,
+  onError?: (error: Error) => void
 ): () => void {
   console.log('[Messages] Subscribing to messages between', userId, 'and', otherUserId);
   const messagesRef = collection(db, MESSAGES_COLLECTION);
@@ -185,16 +190,28 @@ export function subscribeToMessages(
     });
     callback(allMessages);
   };
+  const handleError = (error: any) => {
+    console.error('[Messages] Error in messages subscription:', error);
+    onError?.(error);
+  };
   
-  const unsubscribeSent = onSnapshot(sentQuery, snapshot => {
-    sentMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-    updateMessages();
-  });
+  const unsubscribeSent = onSnapshot(
+    sentQuery,
+    snapshot => {
+      sentMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+      updateMessages();
+    },
+    handleError
+  );
   
-  const unsubscribeReceived = onSnapshot(receivedQuery, snapshot => {
-    receivedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
-    updateMessages();
-  });
+  const unsubscribeReceived = onSnapshot(
+    receivedQuery,
+    snapshot => {
+      receivedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message));
+      updateMessages();
+    },
+    handleError
+  );
 
   return () => {
     unsubscribeSent();
