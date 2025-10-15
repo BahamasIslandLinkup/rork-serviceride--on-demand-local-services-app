@@ -16,10 +16,7 @@ const firebaseConfig = {
 
 const isDevelopment = __DEV__;
 const useEmulators = isDevelopment && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS === 'true';
-const firestoreDatabaseId =
-  process.env.EXPO_PUBLIC_FIREBASE_DATABASE_ID ||
-  process.env.EXPO_PUBLIC_FIRESTORE_DATABASE_ID ||
-  'ondemandservice';
+const firestoreDatabaseId = '(default)';
 
 LogBox.ignoreLogs(['@firebase/auth']);
 
@@ -43,11 +40,9 @@ try {
         app,
         {
           experimentalAutoDetectLongPolling: true,
-          useFetchStreams: false,
-        },
-        firestoreDatabaseId === '(default)' ? undefined : firestoreDatabaseId
+        }
       )
-    : getFirestore(app, firestoreDatabaseId === '(default)' ? undefined : firestoreDatabaseId);
+    : getFirestore(app);
   
   try {
     if (Platform.OS === 'web') {

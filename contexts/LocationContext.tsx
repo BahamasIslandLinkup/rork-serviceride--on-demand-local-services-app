@@ -44,7 +44,7 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
               await updateLocation(coords);
             },
             (error) => {
-              console.error('Web geolocation error:', error);
+              console.error('[Location] Web geolocation error:', error);
               setLocation((prev) => ({
                 ...prev,
                 error: 'Location permission denied',
@@ -53,6 +53,7 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
             }
           );
         } else {
+          console.warn('[Location] Geolocation not supported');
           setLocation((prev) => ({
             ...prev,
             error: 'Geolocation not supported',
@@ -61,7 +62,10 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
         }
       } else {
         const { status } = await Location.requestForegroundPermissionsAsync();
+        console.log('[Location] Permission status:', status);
+        
         if (status !== 'granted') {
+          console.warn('[Location] Permission denied');
           setLocation((prev) => ({
             ...prev,
             error: 'Location permission denied',
@@ -71,7 +75,9 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
         }
 
         setHasPermission(true);
-        const currentLocation = await Location.getCurrentPositionAsync({});
+        const currentLocation = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
         const coords = {
           latitude: currentLocation.coords.latitude,
           longitude: currentLocation.coords.longitude,
@@ -79,7 +85,7 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
         await updateLocation(coords);
       }
     } catch (error) {
-      console.error('Location permission error:', error);
+      console.error('[Location] Permission error:', error);
       setLocation((prev) => ({
         ...prev,
         error: 'Failed to get location',

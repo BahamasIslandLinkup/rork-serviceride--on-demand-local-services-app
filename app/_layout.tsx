@@ -12,6 +12,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { BookingProvider } from "@/contexts/BookingContext";
 import { ActivityIndicator, View } from "react-native";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -97,31 +98,51 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
+  const [appIsReady, setAppIsReady] = React.useState(false);
+
   useEffect(() => {
-    SplashScreen.hideAsync();
+    async function prepare() {
+      try {
+        console.log('[App] Preparing app...');
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error('[App] Error during preparation:', error);
+      } finally {
+        setAppIsReady(true);
+        await SplashScreen.hideAsync();
+      }
+    }
+
+    prepare();
   }, []);
 
+  if (!appIsReady) {
+    return null;
+  }
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider>
-        <AdminProvider>
-          <AuthProvider>
-            <NotificationProvider>
-              <BookingProvider>
-                <PaymentProvider>
-                  <LocationProvider>
-                    <CartProvider>
-                      <GestureHandlerRootView style={{ flex: 1 }}>
-                        <RootLayoutNav />
-                      </GestureHandlerRootView>
-                    </CartProvider>
-                  </LocationProvider>
-                </PaymentProvider>
-              </BookingProvider>
-            </NotificationProvider>
-          </AuthProvider>
-        </AdminProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AdminProvider>
+            <AuthProvider>
+              <NotificationProvider>
+                <BookingProvider>
+                  <PaymentProvider>
+                    <LocationProvider>
+                      <CartProvider>
+                        <GestureHandlerRootView style={{ flex: 1 }}>
+                          <RootLayoutNav />
+                        </GestureHandlerRootView>
+                      </CartProvider>
+                    </LocationProvider>
+                  </PaymentProvider>
+                </BookingProvider>
+              </NotificationProvider>
+            </AuthProvider>
+          </AdminProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

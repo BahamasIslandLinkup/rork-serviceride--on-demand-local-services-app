@@ -21,24 +21,39 @@ const REMEMBER_EMAIL_KEY = 'app_remember_email';
 
 const secureStorage = {
   async setItem(key: string, value: string) {
-    if (Platform.OS === 'web') {
+    try {
+      if (Platform.OS === 'web') {
+        await AsyncStorage.setItem(key, value);
+      } else {
+        await SecureStore.setItemAsync(key, value);
+      }
+    } catch (error) {
+      console.error('[SecureStorage] Set item failed:', error);
       await AsyncStorage.setItem(key, value);
-    } else {
-      await SecureStore.setItemAsync(key, value);
     }
   },
   async getItem(key: string): Promise<string | null> {
-    if (Platform.OS === 'web') {
+    try {
+      if (Platform.OS === 'web') {
+        return await AsyncStorage.getItem(key);
+      } else {
+        return await SecureStore.getItemAsync(key);
+      }
+    } catch (error) {
+      console.error('[SecureStorage] Get item failed:', error);
       return await AsyncStorage.getItem(key);
-    } else {
-      return await SecureStore.getItemAsync(key);
     }
   },
   async removeItem(key: string) {
-    if (Platform.OS === 'web') {
+    try {
+      if (Platform.OS === 'web') {
+        await AsyncStorage.removeItem(key);
+      } else {
+        await SecureStore.deleteItemAsync(key);
+      }
+    } catch (error) {
+      console.error('[SecureStorage] Remove item failed:', error);
       await AsyncStorage.removeItem(key);
-    } else {
-      await SecureStore.deleteItemAsync(key);
     }
   },
 };
@@ -49,36 +64,52 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    loadAuth();
+    let unsubscribe: (() => void) | undefined;
+    
+    const initAuth = async () => {
+      try {
+        await loadAuth();
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      if (firebaseUser) {
-        try {
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
+        unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+          try {
+            if (firebaseUser) {
+              const userDocRef = doc(db, 'users', firebaseUser.uid);
+              const userDoc = await getDoc(userDocRef);
 
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as User;
-            const appUser: User = {
-              ...userData,
-              id: firebaseUser.uid,
-            };
+              if (userDoc.exists()) {
+                const userData = userDoc.data() as User;
+                const appUser: User = {
+                  ...userData,
+                  id: firebaseUser.uid,
+                };
 
-            await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(appUser));
-            setUser(appUser);
-            setIsAuthenticated(true);
+                await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(appUser));
+                setUser(appUser);
+                setIsAuthenticated(true);
+              }
+            } else {
+              setUser(null);
+              setIsAuthenticated(false);
+            }
+          } catch (error) {
+            console.error('[Auth] onAuthStateChanged error:', error);
+          } finally {
+            setIsLoading(false);
           }
-        } catch (error) {
-          console.error('Failed to load user data:', error);
-        }
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
+        });
+      } catch (error) {
+        console.error('[Auth] Init error:', error);
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    });
+    };
 
-    return () => unsubscribe();
+    initAuth();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   const loadAuth = async () => {
