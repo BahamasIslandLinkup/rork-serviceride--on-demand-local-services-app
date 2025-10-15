@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { LocationProvider } from "@/contexts/LocationContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AdminProvider } from "@/contexts/AdminContext";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
@@ -83,6 +84,14 @@ function RootLayoutNav() {
       <Stack.Screen name="provider/earnings" options={{ headerShown: true, title: "Earnings" }} />
       <Stack.Screen name="settings/notifications" options={{ headerShown: true, title: "Notification Settings" }} />
       <Stack.Screen name="tracking/[bookingId]" options={{ headerShown: true, title: "Track Provider" }} />
+      <Stack.Screen name="admin/login" options={{ headerShown: false }} />
+      <Stack.Screen name="admin/dashboard" options={{ headerShown: true }} />
+      <Stack.Screen name="admin/tickets" options={{ headerShown: true, title: "Tickets" }} />
+      <Stack.Screen name="admin/disputes" options={{ headerShown: true, title: "Disputes" }} />
+      <Stack.Screen name="admin/merchants" options={{ headerShown: true, title: "Merchants" }} />
+      <Stack.Screen name="admin/users" options={{ headerShown: true, title: "Users" }} />
+      <Stack.Screen name="admin/bookings" options={{ headerShown: true, title: "Bookings" }} />
+      <Stack.Screen name="admin/settings" options={{ headerShown: true, title: "Admin Settings" }} />
     </Stack>
   );
 }
@@ -95,21 +104,23 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AuthProvider>
-          <NotificationProvider>
-            <BookingProvider>
-              <PaymentProvider>
-                <LocationProvider>
-                  <CartProvider>
-                    <GestureHandlerRootView style={{ flex: 1 }}>
-                      <RootLayoutNav />
-                    </GestureHandlerRootView>
-                  </CartProvider>
-                </LocationProvider>
-              </PaymentProvider>
-            </BookingProvider>
-          </NotificationProvider>
-        </AuthProvider>
+        <AdminProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              <BookingProvider>
+                <PaymentProvider>
+                  <LocationProvider>
+                    <CartProvider>
+                      <GestureHandlerRootView style={{ flex: 1 }}>
+                        <RootLayoutNav />
+                      </GestureHandlerRootView>
+                    </CartProvider>
+                  </LocationProvider>
+                </PaymentProvider>
+              </BookingProvider>
+            </NotificationProvider>
+          </AuthProvider>
+        </AdminProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

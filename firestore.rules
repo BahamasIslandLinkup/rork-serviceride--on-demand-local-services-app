@@ -11,6 +11,14 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    function isAdmin() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    
+    function hasAdminRole(role) {
+      return isAdmin() && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == role;
+    }
+    
     match /users/{userId} {
       allow read: if true;
       allow create: if isAuthenticated() && request.auth.uid == userId;
@@ -113,6 +121,105 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid;
       allow delete: if isAuthenticated() && 
         resource.data.userId == request.auth.uid;
+    }
+    
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if hasAdminRole('super_admin');
+    }
+    
+    match /tickets/{ticketId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if hasAdminRole('super_admin') || hasAdminRole('cs_lead');
+    }
+    
+    match /ticketComments/{commentId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource.data.authorId == request.auth.uid;
+    }
+    
+    match /ticketEvents/{eventId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+    }
+    
+    match /adminDisputes/{disputeId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+    }
+    
+    match /merchantKYC/{kycId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.merchantId == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+    }
+    
+    match /payouts/{payoutId} {
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.merchantId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+    }
+    
+    match /refunds/{refundId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+    }
+    
+    match /adBoosts/{boostId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    match /reportedContent/{reportId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+    }
+    
+    match /kbArticles/{articleId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if hasAdminRole('super_admin');
+    }
+    
+    match /notificationTemplates/{templateId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if hasAdminRole('super_admin');
+    }
+    
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+    }
+    
+    match /slaDefinitions/{slaId} {
+      allow read: if isAdmin();
+      allow write: if hasAdminRole('super_admin') || hasAdminRole('cs_lead');
+    }
+    
+    match /ticketMacros/{macroId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+    
+    match /featureFlags/{flagKey} {
+      allow read: if isAdmin();
+      allow write: if hasAdminRole('super_admin');
+    }
+    
+    match /systemSettings/{settingId} {
+      allow read: if isAdmin();
+      allow write: if hasAdminRole('super_admin');
     }
   }
 }
