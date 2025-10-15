@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
   Alert,
+  Platform,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,13 +16,11 @@ import {
   ArrowLeft,
   Clock,
   User,
-  MessageSquare,
-  AlertCircle,
-  Send,
-
-  CheckCircle,
-  XCircle,
   Tag,
+  Send,
+  Paperclip,
+  CheckCircle,
+  MapPin,
 } from 'lucide-react-native';
 import { useAdmin } from '@/contexts/AdminContext';
 import {
@@ -47,31 +44,16 @@ const COLORS = {
   info: '#2196F3',
 };
 
-const PRIORITY_COLORS = {
-  low: '#4CAF50',
-  medium: '#2196F3',
-  high: '#FF9800',
-  urgent: '#FF4444',
-};
-
-const STATUS_COLORS = {
-  new: '#2196F3',
-  open: '#4CAF50',
-  pending: '#FF9800',
-  awaiting_customer: '#FF9800',
-  awaiting_merchant: '#FF9800',
-  in_progress: '#4CAF50',
-  resolved: '#4CAF50',
-  closed: '#A0A0A0',
-};
+const STATUS_OPTIONS = ['open', 'in_progress', 'awaiting_customer', 'awaiting_merchant', 'resolved', 'closed'] as const;
+const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const;
 
 export default function TicketDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { adminUser, hasPermission, isAuthenticated } = useAdmin();
+  const { id } = useLocalSearchParams();
+  const { adminUser, isAuthenticated, hasPermission } = useAdmin();
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [comments, setComments] = useState<TicketComment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [commentText, setCommentText] = useState('');
+  const [newComment, setNewComment] = useState('');
   const [isInternal, setIsInternal] = useState(false);
   const [isSending, setIsSending] = useState(false);
 
@@ -80,18 +62,17 @@ export default function TicketDetailScreen() {
       router.replace('/admin/login' as any);
       return;
     }
-    if (id) {
-      loadTicketData();
-    }
-  }, [isAuthenticated, id, loadTicketData]);
+    loadTicketData();
+  }, [isAuthenticated, id]);
 
-  const loadTicketData = useCallback(async () => {
-    if (!id) return;
+  const loadTicketData = async () => {
     try {
+      setIsLoading(true);
       const [ticketData, commentsData] = await Promise.all([
-        getTicketById(id),
-        getTicketComments(id),
+        getTicketById(id as string),
+        getTicketComments(id as string),
       ]);
+      
       setTicket(ticketData);
       setComments(commentsData);
     } catch (error) {
@@ -100,89 +81,127 @@ export default function TicketDetailScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  };
 
   const handleSendComment = async () => {
-    if (!commentText.trim() || !adminUser || !id) return;
+    if (!newComment.trim() || !adminUser || !ticket) return;
 
-    setIsSending(true);
+    if (!hasPermission('tickets', 'update')) {
+      Alert.alert('Permission Denied', 'You do not have permission to add comments');
+      return;
+    }
+
     try {
+      setIsSending(true);
       await addTicketComment(
-        id,
+        id as string,
         {
-          ticketId: id,
+          ticketId: id as string,
           authorId: adminUser.id,
           authorName: adminUser.name,
-          authorRole: 'admin',
-          text: commentText.trim(),
+          authorRole: 'admin' as const,
+          text: newComment.trim(),
+          isInternal,
           attachments: [],
-          isInternal: isInternal,
         },
         adminUser.id,
         adminUser.name
       );
-      setCommentText('');
+
+      setNewComment('');
+      setIsInternal(false);
       await loadTicketData();
     } catch (error) {
-      console.error('[Admin] Failed to send comment:', error);
-      Alert.alert('Error', 'Failed to send comment');
+      console.error('[Admin] Failed to add comment:', error);
+      Alert.alert('Error', 'Failed to add comment');
     } finally {
       setIsSending(false);
     }
   };
 
-  const handleUpdateStatus = async (newStatus: Ticket['status']) => {
-    if (!id || !adminUser) return;
+  const handleUpdateStatus = async (newStatus: typeof STATUS_OPTIONS[number]) => {
+    if (!adminUser || !ticket) return;
+
+    if (!hasPermission('tickets', 'update')) {
+      Alert.alert('Permission Denied', 'You do not have permission to update ticket status');
+      return;
+    }
 
     try {
-      await updateTicket(id, { status: newStatus }, adminUser.id, adminUser.name);
+      await updateTicket(
+        id as string,
+        { status: newStatus },
+        adminUser.id,
+        adminUser.name
+      );
       await loadTicketData();
-      Alert.alert('Success', `Ticket status updated to ${newStatus}`);
+      Alert.alert('Success', 'Ticket status updated');
     } catch (error) {
       console.error('[Admin] Failed to update status:', error);
       Alert.alert('Error', 'Failed to update ticket status');
     }
   };
 
-  const handleUpdatePriority = async (newPriority: Ticket['priority']) => {
-    if (!id || !adminUser) return;
+  const handleUpdatePriority = async (newPriority: typeof PRIORITY_OPTIONS[number]) => {
+    if (!adminUser || !ticket) return;
+
+    if (!hasPermission('tickets', 'update')) {
+      Alert.alert('Permission Denied', 'You do not have permission to update ticket priority');
+      return;
+    }
 
     try {
-      await updateTicket(id, { priority: newPriority }, adminUser.id, adminUser.name);
+      await updateTicket(
+        id as string,
+        { priority: newPriority },
+        adminUser.id,
+        adminUser.name
+      );
       await loadTicketData();
-      Alert.alert('Success', `Ticket priority updated to ${newPriority}`);
+      Alert.alert('Success', 'Ticket priority updated');
     } catch (error) {
       console.error('[Admin] Failed to update priority:', error);
       Alert.alert('Error', 'Failed to update ticket priority');
     }
   };
 
-  const handleAssignToMe = async () => {
-    if (!id || !adminUser) return;
-
-    try {
-      await updateTicket(
-        id,
-        { assigneeId: adminUser.id, assigneeName: adminUser.name },
-        adminUser.id,
-        adminUser.name
-      );
-      await loadTicketData();
-      Alert.alert('Success', 'Ticket assigned to you');
-    } catch (error) {
-      console.error('[Admin] Failed to assign ticket:', error);
-      Alert.alert('Error', 'Failed to assign ticket');
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'open':
+        return COLORS.info;
+      case 'in_progress':
+        return COLORS.primary;
+      case 'awaiting_customer':
+      case 'awaiting_merchant':
+        return COLORS.warning;
+      case 'resolved':
+        return COLORS.success;
+      case 'closed':
+        return COLORS.textSecondary;
+      default:
+        return COLORS.textSecondary;
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent':
+        return COLORS.error;
+      case 'high':
+        return COLORS.warning;
+      case 'medium':
+        return COLORS.primary;
+      case 'low':
+        return COLORS.textSecondary;
+      default:
+        return COLORS.textSecondary;
+    }
+  };
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'N/A';
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleString();
   };
 
   if (isLoading) {
@@ -196,7 +215,6 @@ export default function TicketDetailScreen() {
   if (!ticket) {
     return (
       <View style={styles.loadingContainer}>
-        <AlertCircle size={48} color={COLORS.error} />
         <Text style={styles.errorText}>Ticket not found</Text>
       </View>
     );
@@ -206,7 +224,7 @@ export default function TicketDetailScreen() {
     <>
       <Stack.Screen
         options={{
-          title: `Ticket #${ticket.id.slice(-6)}`,
+          title: `Ticket #${ticket.id.substring(0, 8)}`,
           headerStyle: { backgroundColor: COLORS.card },
           headerTintColor: COLORS.text,
           headerLeft: () => (
@@ -217,158 +235,194 @@ export default function TicketDetailScreen() {
         }}
       />
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={100}
-        >
-          <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-            <View style={styles.ticketHeader}>
-              <Text style={styles.ticketSubject}>{ticket.subject}</Text>
-              
-              <View style={styles.metaRow}>
-                <View style={[styles.badge, { backgroundColor: `${STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS]}20`, borderColor: STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS] }]}>
-                  <Text style={[styles.badgeText, { color: STATUS_COLORS[ticket.status as keyof typeof STATUS_COLORS] }]}>
-                    {ticket.status.replace('_', ' ').toUpperCase()}
-                  </Text>
-                </View>
-                <View style={[styles.badge, { backgroundColor: `${PRIORITY_COLORS[ticket.priority as keyof typeof PRIORITY_COLORS]}20`, borderColor: PRIORITY_COLORS[ticket.priority as keyof typeof PRIORITY_COLORS] }]}>
-                  <Text style={[styles.badgeText, { color: PRIORITY_COLORS[ticket.priority as keyof typeof PRIORITY_COLORS] }]}>
-                    {ticket.priority.toUpperCase()}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.infoRow}>
-                <Clock size={16} color={COLORS.textSecondary} />
-                <Text style={styles.infoText}>{formatDate(ticket.createdAt)}</Text>
-              </View>
-
-              {ticket.assigneeName && (
-                <View style={styles.infoRow}>
-                  <User size={16} color={COLORS.textSecondary} />
-                  <Text style={styles.infoText}>Assigned to {ticket.assigneeName}</Text>
-                </View>
-              )}
-
-              {ticket.tags && ticket.tags.length > 0 && (
-                <View style={styles.tagsContainer}>
-                  {ticket.tags.map((tag: string, index: number) => (
-                    <View key={index} style={styles.tag}>
-                      <Tag size={12} color={COLORS.primary} />
-                      <Text style={styles.tagText}>{tag}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              <View style={styles.descriptionCard}>
-                <Text style={styles.descriptionLabel}>Description</Text>
-                <Text style={styles.descriptionText}>{ticket.description}</Text>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <View style={styles.headerRow}>
+              <Text style={styles.title}>{ticket.subject}</Text>
+              <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(ticket.status)}20` }]}>
+                <Text style={[styles.statusText, { color: getStatusColor(ticket.status) }]}>
+                  {ticket.status.replace(/_/g, ' ').toUpperCase()}
+                </Text>
               </View>
             </View>
 
-            {hasPermission('tickets', 'update') && (
-              <View style={styles.actionsSection}>
-                <Text style={styles.sectionTitle}>Quick Actions</Text>
-                <View style={styles.actionsGrid}>
-                  {!ticket.assigneeId && (
-                    <TouchableOpacity style={styles.actionButton} onPress={handleAssignToMe}>
-                      <User size={20} color={COLORS.primary} />
-                      <Text style={styles.actionButtonText}>Assign to Me</Text>
-                    </TouchableOpacity>
-                  )}
-                  
-                  {ticket.status !== 'resolved' && (
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleUpdateStatus('resolved')}
-                    >
-                      <CheckCircle size={20} color={COLORS.success} />
-                      <Text style={styles.actionButtonText}>Mark Resolved</Text>
-                    </TouchableOpacity>
-                  )}
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <User size={16} color={COLORS.textSecondary} />
+                <Text style={styles.metaText}>{ticket.customerName || 'N/A'}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Clock size={16} color={COLORS.textSecondary} />
+                <Text style={styles.metaText}>{formatDate(ticket.createdAt)}</Text>
+              </View>
+              <View style={styles.metaItem}>
+                <Tag size={16} color={getPriorityColor(ticket.priority)} />
+                <Text style={[styles.metaText, { color: getPriorityColor(ticket.priority) }]}>
+                  {ticket.priority.toUpperCase()}
+                </Text>
+              </View>
+            </View>
 
-                  {ticket.status !== 'closed' && ticket.status === 'resolved' && (
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handleUpdateStatus('closed')}
-                    >
-                      <XCircle size={20} color={COLORS.textSecondary} />
-                      <Text style={styles.actionButtonText}>Close Ticket</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+            {ticket.tags && ticket.tags.length > 0 && (
+              <View style={styles.tagsRow}>
+                {ticket.tags.map((tag, index) => (
+                  <View key={index} style={styles.tag}>
+                    <Text style={styles.tagText}>{tag}</Text>
+                  </View>
+                ))}
               </View>
             )}
+          </View>
 
-            <View style={styles.commentsSection}>
-              <Text style={styles.sectionTitle}>Timeline</Text>
-              {comments.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <MessageSquare size={48} color={COLORS.textSecondary} />
-                  <Text style={styles.emptyText}>No comments yet</Text>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.description}>{ticket.description}</Text>
+          </View>
+
+          {ticket.bookingId && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Related Booking</Text>
+              <TouchableOpacity
+                style={styles.relatedCard}
+                onPress={() => router.push(`/admin/bookings` as any)}
+              >
+                <MapPin size={20} color={COLORS.primary} />
+                <Text style={styles.relatedText}>Booking #{ticket.bookingId.substring(0, 8)}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Actions</Text>
+            <View style={styles.actionButtons}>
+              <View style={styles.actionColumn}>
+                <Text style={styles.actionLabel}>Status</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.optionsScroll}>
+                  {STATUS_OPTIONS.map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        styles.optionButton,
+                        ticket.status === status && styles.optionButtonActive,
+                        { borderColor: getStatusColor(status) },
+                      ]}
+                      onPress={() => handleUpdateStatus(status)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionButtonText,
+                          ticket.status === status && { color: getStatusColor(status) },
+                        ]}
+                      >
+                        {status.replace(/_/g, ' ')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.actionColumn}>
+                <Text style={styles.actionLabel}>Priority</Text>
+                <View style={styles.priorityButtons}>
+                  {PRIORITY_OPTIONS.map((priority) => (
+                    <TouchableOpacity
+                      key={priority}
+                      style={[
+                        styles.priorityButton,
+                        ticket.priority === priority && styles.priorityButtonActive,
+                        { borderColor: getPriorityColor(priority) },
+                      ]}
+                      onPress={() => handleUpdatePriority(priority)}
+                    >
+                      <Text
+                        style={[
+                          styles.priorityButtonText,
+                          ticket.priority === priority && { color: getPriorityColor(priority) },
+                        ]}
+                      >
+                        {priority}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-              ) : (
-                comments.map((comment) => (
-                  <View
-                    key={comment.id}
-                    style={[
-                      styles.commentCard,
-                      comment.isInternal && styles.internalComment,
-                    ]}
-                  >
+              </View>
+            </View>
+          </View>
+
+
+
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Comments ({comments.length})</Text>
+            {comments.map((comment, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.commentCard,
+                  comment.isInternal && styles.commentCardInternal,
+                ]}
+              >
+                <View style={styles.commentHeader}>
+                  <View style={styles.commentAuthor}>
+                    <User size={16} color={comment.isInternal ? COLORS.warning : COLORS.primary} />
+                    <Text style={styles.commentAuthorName}>{comment.authorName}</Text>
                     {comment.isInternal && (
                       <View style={styles.internalBadge}>
                         <Text style={styles.internalBadgeText}>INTERNAL</Text>
                       </View>
                     )}
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentAuthor}>{comment.authorName}</Text>
-                      <Text style={styles.commentTime}>{formatDate(comment.createdAt)}</Text>
-                    </View>
-                    <Text style={styles.commentMessage}>{comment.text}</Text>
                   </View>
-                ))
-              )}
-            </View>
-          </ScrollView>
+                  <Text style={styles.commentDate}>{formatDate(comment.createdAt)}</Text>
+                </View>
+                <Text style={styles.commentContent}>{comment.text}</Text>
+              </View>
+            ))}
+          </View>
 
-          {hasPermission('tickets', 'update') && (
-            <View style={styles.inputContainer}>
+          <View style={styles.section}>
+            <View style={styles.commentInputHeader}>
+              <Text style={styles.sectionTitle}>Add Comment</Text>
               <TouchableOpacity
                 style={styles.internalToggle}
                 onPress={() => setIsInternal(!isInternal)}
               >
-                <View style={[styles.checkbox, isInternal && styles.checkboxActive]} />
-                <Text style={styles.internalLabel}>Internal Note</Text>
+                <View style={[styles.checkbox, isInternal && styles.checkboxActive]}>
+                  {isInternal && <CheckCircle size={16} color={COLORS.warning} />}
+                </View>
+                <Text style={styles.internalToggleText}>Internal Note</Text>
               </TouchableOpacity>
-              
-              <View style={styles.inputRow}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Type your message..."
-                  placeholderTextColor={COLORS.textSecondary}
-                  value={commentText}
-                  onChangeText={setCommentText}
-                  multiline
-                  maxLength={1000}
-                />
+            </View>
+            <View style={styles.commentInputContainer}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Type your comment..."
+                placeholderTextColor={COLORS.textSecondary}
+                multiline
+                numberOfLines={4}
+                value={newComment}
+                onChangeText={setNewComment}
+              />
+              <View style={styles.commentActions}>
+                <TouchableOpacity style={styles.attachButton}>
+                  <Paperclip size={20} color={COLORS.textSecondary} />
+                </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.sendButton, !commentText.trim() && styles.sendButtonDisabled]}
+                  style={[styles.sendButton, !newComment.trim() && styles.sendButtonDisabled]}
                   onPress={handleSendComment}
-                  disabled={!commentText.trim() || isSending}
+                  disabled={!newComment.trim() || isSending}
                 >
                   {isSending ? (
                     <ActivityIndicator size="small" color={COLORS.background} />
                   ) : (
-                    <Send size={20} color={COLORS.background} />
+                    <>
+                      <Send size={16} color={COLORS.background} />
+                      <Text style={styles.sendButtonText}>Send</Text>
+                    </>
                   )}
                 </TouchableOpacity>
               </View>
             </View>
-          )}
-        </KeyboardAvoidingView>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     </>
   );
@@ -379,9 +433,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  keyboardView: {
-    flex: 1,
-  },
   loadingContainer: {
     flex: 1,
     backgroundColor: COLORS.background,
@@ -391,96 +442,77 @@ const styles = StyleSheet.create({
   errorText: {
     color: COLORS.error,
     fontSize: 16,
-    marginTop: 16,
+    fontWeight: '600' as const,
   },
   backButton: {
     padding: 8,
+    marginLeft: Platform.OS === 'web' ? 8 : 0,
   },
-  scrollView: {
-    flex: 1,
-  },
-  ticketHeader: {
+  header: {
     padding: 24,
     backgroundColor: COLORS.card,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
-  ticketSubject: {
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  title: {
     fontSize: 22,
     fontWeight: '700' as const,
     color: COLORS.text,
-    marginBottom: 12,
+    flex: 1,
+    marginRight: 16,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 0.5,
   },
   metaRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
+    flexWrap: 'wrap',
+    gap: 16,
+    marginBottom: 16,
   },
-  badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  badgeText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-  },
-  infoRow: {
+  metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: 6,
   },
-  infoText: {
-    fontSize: 14,
+  metaText: {
+    fontSize: 13,
     color: COLORS.textSecondary,
+    fontWeight: '500' as const,
   },
-  tagsContainer: {
+  tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginTop: 8,
   },
   tag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: `${COLORS.primary}15`,
+    backgroundColor: `${COLORS.primary}20`,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: COLORS.primary,
   },
   tagText: {
     fontSize: 12,
     color: COLORS.primary,
     fontWeight: '600' as const,
   },
-  descriptionCard: {
-    marginTop: 16,
-    padding: 16,
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  descriptionLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    fontWeight: '600' as const,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  descriptionText: {
-    fontSize: 15,
-    color: COLORS.text,
-    lineHeight: 22,
-  },
-  actionsSection: {
+  section: {
     padding: 24,
-    paddingTop: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   sectionTitle: {
     fontSize: 16,
@@ -488,39 +520,105 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 12,
   },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  description: {
+    fontSize: 15,
+    color: COLORS.textSecondary,
+    lineHeight: 22,
   },
-  actionButton: {
+  relatedCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: 10,
+    padding: 16,
     backgroundColor: COLORS.card,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  actionButtonText: {
+  relatedText: {
     fontSize: 14,
     color: COLORS.text,
     fontWeight: '600' as const,
   },
-  commentsSection: {
-    padding: 24,
-    paddingTop: 8,
+  actionButtons: {
+    gap: 20,
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 48,
+  actionColumn: {
+    gap: 8,
   },
-  emptyText: {
-    fontSize: 16,
+  actionLabel: {
+    fontSize: 14,
     color: COLORS.textSecondary,
-    marginTop: 16,
+    fontWeight: '600' as const,
+  },
+  optionsScroll: {
+    flexDirection: 'row',
+  },
+  optionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  optionButtonActive: {
+    backgroundColor: `${COLORS.primary}15`,
+  },
+  optionButtonText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '600' as const,
+    textTransform: 'capitalize' as const,
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  priorityButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  priorityButtonActive: {
+    backgroundColor: `${COLORS.primary}15`,
+  },
+  priorityButtonText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '600' as const,
+    textTransform: 'capitalize' as const,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    marginBottom: 20,
+  },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: COLORS.primary,
+    marginRight: 12,
+    marginTop: 4,
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  timelineDescription: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  timelineDate: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
   commentCard: {
     backgroundColor: COLORS.card,
@@ -530,54 +628,56 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  internalComment: {
+  commentCardInternal: {
     backgroundColor: `${COLORS.warning}10`,
-    borderColor: COLORS.warning,
-  },
-  internalBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: COLORS.warning,
-    borderRadius: 4,
-    marginBottom: 8,
-  },
-  internalBadgeText: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    color: COLORS.background,
+    borderColor: `${COLORS.warning}30`,
   },
   commentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   commentAuthor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  commentAuthorName: {
     fontSize: 14,
-    fontWeight: '700' as const,
+    fontWeight: '600' as const,
     color: COLORS.text,
   },
-  commentTime: {
+  internalBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    backgroundColor: `${COLORS.warning}30`,
+    borderRadius: 4,
+  },
+  internalBadgeText: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: COLORS.warning,
+  },
+  commentDate: {
     fontSize: 12,
     color: COLORS.textSecondary,
   },
-  commentMessage: {
-    fontSize: 15,
-    color: COLORS.text,
-    lineHeight: 22,
+  commentContent: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    lineHeight: 20,
   },
-  inputContainer: {
-    padding: 16,
-    backgroundColor: COLORS.card,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+  commentInputHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   internalToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12,
   },
   checkbox: {
     width: 20,
@@ -585,43 +685,58 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 2,
     borderColor: COLORS.border,
-  },
-  checkboxActive: {
-    backgroundColor: COLORS.primary,
-    borderColor: COLORS.primary,
-  },
-  internalLabel: {
-    fontSize: 14,
-    color: COLORS.text,
-    fontWeight: '500' as const,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'flex-end',
-  },
-  input: {
-    flex: 1,
-    minHeight: 48,
-    maxHeight: 120,
-    backgroundColor: COLORS.background,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: COLORS.text,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  sendButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: COLORS.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  checkboxActive: {
+    borderColor: COLORS.warning,
+    backgroundColor: `${COLORS.warning}20`,
+  },
+  internalToggleText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    fontWeight: '600' as const,
+  },
+  commentInputContainer: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  commentInput: {
+    padding: 16,
+    fontSize: 14,
+    color: COLORS.text,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  commentActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+  attachButton: {
+    padding: 8,
+  },
+  sendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
   sendButtonDisabled: {
     opacity: 0.5,
+  },
+  sendButtonText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: COLORS.background,
   },
 });

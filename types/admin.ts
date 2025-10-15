@@ -159,6 +159,14 @@ export type DisputeOutcome =
   | 'goodwill_credit'
   | 'denied';
 
+export type DisputeStatus = 
+  | 'open'
+  | 'investigating'
+  | 'pending_merchant_response'
+  | 'pending_decision'
+  | 'resolved'
+  | 'rejected';
+
 export type AdminDispute = {
   id: string;
   ticketId: string;
@@ -170,6 +178,7 @@ export type AdminDispute = {
   reason: DisputeReason;
   requestedAmount: number;
   description: string;
+  status: DisputeStatus;
   evidence: {
     id: string;
     type: 'image' | 'video' | 'document';
