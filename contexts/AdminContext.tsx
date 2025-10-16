@@ -118,10 +118,19 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
+          console.log('[Admin] Fetching admin data for user:', firebaseUser.uid);
           const adminDocRef = doc(db, 'admins', firebaseUser.uid);
-          const adminDoc = await getDoc(adminDocRef);
+          
+          const adminDoc = await getDoc(adminDocRef).catch((error) => {
+            console.error('[Admin] Error fetching admin document:', error);
+            if (error.code === 'unavailable') {
+              console.log('[Admin] Firestore unavailable, using cached data');
+              return null;
+            }
+            throw error;
+          });
 
-          if (adminDoc.exists()) {
+          if (adminDoc && adminDoc.exists()) {
             const adminData = adminDoc.data();
             const admin: AdminUser = {
               id: firebaseUser.uid,
@@ -140,6 +149,9 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
             await AsyncStorage.setItem(ADMIN_USER_STORAGE_KEY, JSON.stringify(admin));
             setAdminUser(admin);
             setIsAuthenticated(true);
+            console.log('[Admin] Admin data loaded successfully');
+          } else {
+            console.log('[Admin] Using cached admin data due to unavailable Firestore');
           }
         } catch (error) {
           console.error('[Admin] Failed to load admin data:', error);
@@ -176,7 +188,11 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const firebaseUser = userCredential.user;
 
+      console.log('[Admin] Fetching admin document for:', firebaseUser.uid);
       const adminDocRef = doc(db, 'admins', firebaseUser.uid);
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const adminDoc = await getDoc(adminDocRef);
 
       if (!adminDoc.exists()) {

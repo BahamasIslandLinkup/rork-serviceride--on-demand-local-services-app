@@ -40,7 +40,9 @@ try {
         app,
         {
           experimentalAutoDetectLongPolling: true,
-        }
+          ignoreUndefinedProperties: true,
+        },
+        firestoreDatabaseId
       )
     : getFirestore(app);
   

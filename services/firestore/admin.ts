@@ -101,6 +101,7 @@ export async function getTickets(filters?: {
   limitCount?: number;
 }): Promise<Ticket[]> {
   try {
+    console.log('[Admin] Fetching tickets with filters:', filters);
     let q = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'));
 
     if (filters?.status) {
@@ -522,10 +523,39 @@ export async function getDashboardKPIs(dateRange?: {
   end: string;
 }): Promise<DashboardKPI> {
   try {
-    const bookingsSnapshot = await getDocs(collection(db, 'bookings'));
-    const paymentsSnapshot = await getDocs(collection(db, 'payments'));
-    const disputesSnapshot = await getDocs(collection(db, 'disputes'));
-    const ticketsSnapshot = await getDocs(collection(db, 'tickets'));
+    console.log('[Admin] Fetching dashboard KPIs...');
+    
+    const [bookingsSnapshot, paymentsSnapshot, disputesSnapshot, ticketsSnapshot] = await Promise.allSettled([
+      getDocs(collection(db, 'bookings')),
+      getDocs(collection(db, 'payments')),
+      getDocs(collection(db, 'disputes')),
+      getDocs(collection(db, 'tickets')),
+    ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : null));
+
+    if (!bookingsSnapshot || !paymentsSnapshot || !disputesSnapshot || !ticketsSnapshot) {
+      console.log('[Admin] Some collections unavailable, returning default KPIs');
+      return {
+        totalBookings: 0,
+        activeBookings: 0,
+        completedBookings: 0,
+        cancelledBookings: 0,
+        bookingCompletionRate: 0,
+        totalRevenue: 0,
+        platformFees: 0,
+        merchantPayouts: 0,
+        adBoostRevenue: 0,
+        averageBookingValue: 0,
+        newCustomers: 0,
+        newMerchants: 0,
+        pendingKYC: 0,
+        openDisputes: 0,
+        disputeRate: 0,
+        openTickets: 0,
+        averageResponseTime: 0,
+        averageResolutionTime: 0,
+        slaCompliance: 0,
+      };
+    }
 
     const bookings = bookingsSnapshot.docs.map(d => d.data());
     const payments = paymentsSnapshot.docs.map(d => d.data());
