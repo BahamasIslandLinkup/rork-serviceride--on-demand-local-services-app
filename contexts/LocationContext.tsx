@@ -49,34 +49,38 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
               switch (error.code) {
                 case error.PERMISSION_DENIED:
                   errorMessage = 'Location permission denied. Please enable location in your browser settings.';
-                  console.error('[Location] User denied location permission');
+                  console.log('[Location] User denied location permission - using default location');
                   break;
                 case error.POSITION_UNAVAILABLE:
                   errorMessage = 'Location information unavailable. Please check your device settings.';
-                  console.error('[Location] Position unavailable');
+                  console.log('[Location] Position unavailable - using default location');
                   break;
                 case error.TIMEOUT:
                   errorMessage = 'Location request timed out. Please try again.';
-                  console.error('[Location] Location request timeout');
+                  console.log('[Location] Location request timeout - using default location');
                   break;
                 default:
                   errorMessage = 'An unknown error occurred while getting location.';
-                  console.error('[Location] Unknown geolocation error:', error.message);
+                  console.log('[Location] Unknown geolocation error:', error.message);
               }
               
-              setLocation((prev) => ({
-                ...prev,
+              setLocation({
+                coords: null,
+                address: null,
+                city: 'Nassau, Bahamas',
                 error: errorMessage,
-              }));
+              });
               setIsLoading(false);
             }
           );
         } else {
-          console.warn('[Location] Geolocation not supported');
-          setLocation((prev) => ({
-            ...prev,
+          console.log('[Location] Geolocation not supported - using default location');
+          setLocation({
+            coords: null,
+            address: null,
+            city: 'Nassau, Bahamas',
             error: 'Geolocation not supported',
-          }));
+          });
           setIsLoading(false);
         }
       } else {
@@ -84,11 +88,13 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
         console.log('[Location] Permission status:', status);
         
         if (status !== 'granted') {
-          console.warn('[Location] Permission denied');
-          setLocation((prev) => ({
-            ...prev,
+          console.log('[Location] Permission denied - using default location');
+          setLocation({
+            coords: null,
+            address: null,
+            city: 'Nassau, Bahamas',
             error: 'Location permission denied',
-          }));
+          });
           setIsLoading(false);
           return;
         }
@@ -104,11 +110,13 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
         await updateLocation(coords);
       }
     } catch (error) {
-      console.error('[Location] Permission error:', error);
-      setLocation((prev) => ({
-        ...prev,
+      console.log('[Location] Permission error - using default location:', error);
+      setLocation({
+        coords: null,
+        address: null,
+        city: 'Nassau, Bahamas',
         error: 'Failed to get location',
-      }));
+      });
       setIsLoading(false);
     }
   };
@@ -172,18 +180,18 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
               switch (error.code) {
                 case error.PERMISSION_DENIED:
                   errorMessage = 'Location permission denied';
-                  console.error('[Location] Permission denied on refresh');
+                  console.log('[Location] Permission denied on refresh');
                   break;
                 case error.POSITION_UNAVAILABLE:
                   errorMessage = 'Location unavailable';
-                  console.error('[Location] Position unavailable on refresh');
+                  console.log('[Location] Position unavailable on refresh');
                   break;
                 case error.TIMEOUT:
                   errorMessage = 'Location request timed out';
-                  console.error('[Location] Timeout on refresh');
+                  console.log('[Location] Timeout on refresh');
                   break;
                 default:
-                  console.error('[Location] Unknown error on refresh:', error.message);
+                  console.log('[Location] Unknown error on refresh:', error.message);
               }
               
               setLocation((prev) => ({
