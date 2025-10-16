@@ -44,10 +44,29 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
               await updateLocation(coords);
             },
             (error) => {
-              console.error('[Location] Web geolocation error:', error);
+              let errorMessage = 'Failed to get location';
+              
+              switch (error.code) {
+                case error.PERMISSION_DENIED:
+                  errorMessage = 'Location permission denied. Please enable location in your browser settings.';
+                  console.error('[Location] User denied location permission');
+                  break;
+                case error.POSITION_UNAVAILABLE:
+                  errorMessage = 'Location information unavailable. Please check your device settings.';
+                  console.error('[Location] Position unavailable');
+                  break;
+                case error.TIMEOUT:
+                  errorMessage = 'Location request timed out. Please try again.';
+                  console.error('[Location] Location request timeout');
+                  break;
+                default:
+                  errorMessage = 'An unknown error occurred while getting location.';
+                  console.error('[Location] Unknown geolocation error:', error.message);
+              }
+              
               setLocation((prev) => ({
                 ...prev,
-                error: 'Location permission denied',
+                error: errorMessage,
               }));
               setIsLoading(false);
             }
@@ -148,7 +167,29 @@ export const [LocationProvider, useLocation] = createContextHook(() => {
               await updateLocation(coords);
             },
             (error) => {
-              console.error('Web geolocation error:', error);
+              let errorMessage = 'Failed to refresh location';
+              
+              switch (error.code) {
+                case error.PERMISSION_DENIED:
+                  errorMessage = 'Location permission denied';
+                  console.error('[Location] Permission denied on refresh');
+                  break;
+                case error.POSITION_UNAVAILABLE:
+                  errorMessage = 'Location unavailable';
+                  console.error('[Location] Position unavailable on refresh');
+                  break;
+                case error.TIMEOUT:
+                  errorMessage = 'Location request timed out';
+                  console.error('[Location] Timeout on refresh');
+                  break;
+                default:
+                  console.error('[Location] Unknown error on refresh:', error.message);
+              }
+              
+              setLocation((prev) => ({
+                ...prev,
+                error: errorMessage,
+              }));
               setIsLoading(false);
             }
           );
