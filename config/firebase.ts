@@ -1,8 +1,17 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator, enableNetwork, disableNetwork } from 'firebase/firestore';
-import { initializeAuth, getAuth, Auth, connectAuthEmulator, browserLocalPersistence, indexedDBLocalPersistence } from 'firebase/auth';
+import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
+import {
+  initializeAuth,
+  getAuth,
+  Auth,
+  connectAuthEmulator,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+  getReactNativePersistence,
+} from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
 import { Platform, LogBox } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAt__1VR0GlFLxvRsg_laYlyVgwNsO3XSA",
@@ -16,7 +25,10 @@ const firebaseConfig = {
 
 const isDevelopment = __DEV__;
 const useEmulators = isDevelopment && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATORS === 'true';
-const firestoreDatabaseId = '(default)';
+const firestoreDatabaseId =
+  process.env.EXPO_PUBLIC_FIREBASE_DATABASE_ID ||
+  process.env.EXPO_PUBLIC_FIRESTORE_DATABASE_ID ||
+  'ondemandservice';
 
 LogBox.ignoreLogs(['@firebase/auth']);
 
@@ -40,23 +52,20 @@ try {
         app,
         {
           experimentalAutoDetectLongPolling: true,
-          ignoreUndefinedProperties: true,
+          useFetchStreams: false,
         },
-        firestoreDatabaseId
+        firestoreDatabaseId === '(default)' ? undefined : firestoreDatabaseId
       )
-    : getFirestore(app);
-
-  if (!isNewAppInstance) {
-    console.log('🔄 Re-enabling Firestore network...');
-    enableNetwork(db).catch(err => {
-      console.log('⚠️ Network enable skipped:', err.code);
-    });
-  }
+    : getFirestore(app, firestoreDatabaseId === '(default)' ? undefined : firestoreDatabaseId);
   
   try {
     if (Platform.OS === 'web') {
       auth = initializeAuth(app, {
         persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      });
+    } else if (isNewAppInstance) {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
       });
     } else {
       auth = getAuth(app);

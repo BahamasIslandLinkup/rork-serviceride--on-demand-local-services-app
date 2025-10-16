@@ -12,7 +12,8 @@ export const StorageService = {
   async uploadImage(
     uri: string,
     path: string,
-    fileName?: string
+    fileName?: string,
+    contentType?: string
   ): Promise<UploadResult> {
     try {
       console.log('📤 Uploading image to:', path);
@@ -23,7 +24,11 @@ export const StorageService = {
       const name = fileName || `image_${Date.now()}.jpg`;
       const storageRef = ref(storage, `${path}/${name}`);
 
-      const snapshot = await uploadBytes(storageRef, blob);
+      const snapshot = await uploadBytes(
+        storageRef,
+        blob,
+        contentType ? { contentType } : undefined
+      );
       const downloadURL = await getDownloadURL(snapshot.ref);
 
       console.log('✅ Image uploaded successfully:', downloadURL);
@@ -153,8 +158,8 @@ export const StorageService = {
         return null;
       }
 
-      const { uri } = result.assets[0];
-      return await StorageService.uploadImage(uri, path);
+      const { uri, mimeType } = result.assets[0];
+      return await StorageService.uploadImage(uri, path, undefined, mimeType || undefined);
     } catch (error) {
       console.error('❌ Pick and upload image failed:', error);
       throw new Error('Failed to pick and upload image');
@@ -207,8 +212,8 @@ export const StorageService = {
         return null;
       }
 
-      const { uri } = result.assets[0];
-      return await StorageService.uploadImage(uri, path);
+      const { uri, mimeType } = result.assets[0];
+      return await StorageService.uploadImage(uri, path, undefined, mimeType || undefined);
     } catch (error) {
       console.error('❌ Take photo and upload failed:', error);
       throw new Error('Failed to take photo and upload');
@@ -217,7 +222,7 @@ export const StorageService = {
 
   getStoragePath: {
     userProfile: (userId: string) => `profiles/${userId}`,
-    userAvatar: (userId: string) => `profiles/${userId}/avatar`,
+    userAvatar: (userId: string) => `profiles/${userId}`,
     bookingAttachment: (bookingId: string) => `bookings/${bookingId}`,
     disputeEvidence: (disputeId: string) => `disputes/${disputeId}`,
     chatMedia: (conversationId: string) => `chats/${conversationId}`,

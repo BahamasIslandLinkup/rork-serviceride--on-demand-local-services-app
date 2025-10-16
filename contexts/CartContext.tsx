@@ -9,6 +9,17 @@ const CART_STORAGE_KEY = '@island_linkup_cart';
 const TAX_RATE = 0.075;
 const PLATFORM_FEE_RATE = 0.05;
 
+type AddToCartResult =
+  | { success: true; replaced?: boolean }
+  | { success: false; reason: 'different_provider' };
+
+type AddToCartOptions = {
+  replaceExisting?: boolean;
+};
+
+const normalizeAddOnIds = (ids: string[] = []) => [...ids].sort().join('|');
+const cloneAddOnIds = (ids: string[] = []) => [...ids];
+
 export const [CartProvider, useCart] = createContextHook(() => {
   const [cart, setCart] = useState<Cart>({ items: [], providerId: undefined });
   const [isLoading, setIsLoading] = useState(true);
@@ -43,21 +54,41 @@ export const [CartProvider, useCart] = createContextHook(() => {
     catalogItem: CatalogItem,
     quantity: number = 1,
     selectedVariantId?: string,
-    selectedAddOnIds: string[] = []
-  ) => {
+    selectedAddOnIds: string[] = [],
+    options: AddToCartOptions = {}
+  ): AddToCartResult => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
     if (cart.providerId && cart.providerId !== catalogItem.providerId) {
-      return false;
+      if (!options.replaceExisting) {
+        return { success: false, reason: 'different_provider' };
+      }
+
+      const freshCart: Cart = {
+        items: [
+          {
+            catalogItemId: catalogItem.id,
+            providerId: catalogItem.providerId,
+            quantity,
+            selectedVariantId,
+            selectedAddOnIds: cloneAddOnIds(selectedAddOnIds),
+          },
+        ],
+        providerId: catalogItem.providerId,
+      };
+
+      saveCart(freshCart);
+      return { success: true, replaced: true };
     }
 
+    const targetAddOnSignature = normalizeAddOnIds(selectedAddOnIds);
     const existingItemIndex = cart.items.findIndex(
       (item) =>
         item.catalogItemId === catalogItem.id &&
         item.selectedVariantId === selectedVariantId &&
-        JSON.stringify(item.selectedAddOnIds.sort()) === JSON.stringify(selectedAddOnIds.sort())
+        normalizeAddOnIds(item.selectedAddOnIds) === targetAddOnSignature
     );
 
     let newItems: CartItem[];
@@ -76,7 +107,7 @@ export const [CartProvider, useCart] = createContextHook(() => {
           providerId: catalogItem.providerId,
           quantity,
           selectedVariantId,
-          selectedAddOnIds,
+          selectedAddOnIds: cloneAddOnIds(selectedAddOnIds),
         },
       ];
     }
@@ -86,7 +117,7 @@ export const [CartProvider, useCart] = createContextHook(() => {
       providerId: catalogItem.providerId,
     });
 
-    return true;
+    return { success: true };
   }, [cart, saveCart]);
 
   const removeFromCart = useCallback((
@@ -98,12 +129,13 @@ export const [CartProvider, useCart] = createContextHook(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
 
+    const targetAddOnSignature = normalizeAddOnIds(selectedAddOnIds);
     const newItems = cart.items.filter(
       (item) =>
         !(
           item.catalogItemId === catalogItemId &&
           item.selectedVariantId === selectedVariantId &&
-          JSON.stringify(item.selectedAddOnIds.sort()) === JSON.stringify(selectedAddOnIds.sort())
+          normalizeAddOnIds(item.selectedAddOnIds) === targetAddOnSignature
         )
     );
 
@@ -124,11 +156,12 @@ export const [CartProvider, useCart] = createContextHook(() => {
       return;
     }
 
+    const targetAddOnSignature = normalizeAddOnIds(selectedAddOnIds);
     const newItems = cart.items.map((item) => {
       if (
         item.catalogItemId === catalogItemId &&
         item.selectedVariantId === selectedVariantId &&
-        JSON.stringify(item.selectedAddOnIds.sort()) === JSON.stringify(selectedAddOnIds.sort())
+        normalizeAddOnIds(item.selectedAddOnIds) === targetAddOnSignature
       ) {
         return { ...item, quantity };
       }

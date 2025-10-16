@@ -22,6 +22,7 @@ import {
   Play,
   DollarSign,
   Star,
+  HelpCircle,
 } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +30,12 @@ import { updateBookingStatus, subscribeToBooking } from '@/services/firestore/bo
 import type { Booking } from '@/types';
 
 const STATUS_CONFIG: Record<Booking['status'], { label: string; color: string; icon: any; description: string }> = {
+  pending_confirmation: {
+    label: 'Awaiting Confirmation',
+    color: '#facc15',
+    icon: Clock,
+    description: 'Provider has received your request and will respond shortly',
+  },
   pending: {
     label: 'Pending',
     color: '#f59e0b',
@@ -37,6 +44,12 @@ const STATUS_CONFIG: Record<Booking['status'], { label: string; color: string; i
   },
   accepted: {
     label: 'Accepted',
+    color: '#3b82f6',
+    icon: CheckCircle,
+    description: 'Provider has confirmed your booking',
+  },
+  confirmed: {
+    label: 'Confirmed',
     color: '#3b82f6',
     icon: CheckCircle,
     description: 'Provider has confirmed your booking',
@@ -65,6 +78,23 @@ const STATUS_CONFIG: Record<Booking['status'], { label: string; color: string; i
     icon: XCircle,
     description: 'Booking has been cancelled',
   },
+};
+
+const UNKNOWN_STATUS_CONFIG = {
+  label: 'Status Unknown',
+  color: '#6B7280',
+  icon: HelpCircle,
+  description: 'The booking status could not be determined.',
+};
+
+const getStatusConfig = (status: Booking['status'] | string) => {
+  const normalizedStatus = typeof status === 'string' ? status : 'pending_confirmation';
+
+  if (normalizedStatus in STATUS_CONFIG) {
+    return STATUS_CONFIG[normalizedStatus as Booking['status']];
+  }
+
+  return UNKNOWN_STATUS_CONFIG;
 };
 
 export default function BookingDetailScreen() {
@@ -119,7 +149,7 @@ export default function BookingDetailScreen() {
     );
   }
 
-  const statusConfig = STATUS_CONFIG[booking.status];
+  const statusConfig = getStatusConfig(booking.status);
   const StatusIcon = statusConfig.icon;
   const isProvider = user?.role === 'provider';
 
@@ -263,7 +293,7 @@ export default function BookingDetailScreen() {
   };
 
   const renderProviderActions = () => {
-    if (booking.status === 'pending') {
+    if (booking.status === 'pending' || booking.status === 'pending_confirmation') {
       return (
         <View style={styles.actionsContainer}>
           <TouchableOpacity
@@ -298,7 +328,7 @@ export default function BookingDetailScreen() {
       );
     }
 
-    if (booking.status === 'accepted') {
+    if (booking.status === 'accepted' || booking.status === 'confirmed') {
       return (
         <TouchableOpacity
           style={[styles.primaryButton, { backgroundColor: colors.primary }]}
@@ -340,7 +370,12 @@ export default function BookingDetailScreen() {
   };
 
   const renderCustomerActions = () => {
-    if (booking.status === 'pending' || booking.status === 'accepted') {
+    if (
+      booking.status === 'pending' ||
+      booking.status === 'pending_confirmation' ||
+      booking.status === 'accepted' ||
+      booking.status === 'confirmed'
+    ) {
       return (
         <TouchableOpacity
           style={[styles.primaryButton, { backgroundColor: colors.error }]}
