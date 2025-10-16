@@ -220,6 +220,43 @@ export const StorageService = {
     }
   },
 
+  async uploadProofMedia(
+    bookingId: string,
+    providerId: string,
+    media: { uri: string; type: 'image' | 'video' }[]
+  ): Promise<any[]> {
+    try {
+      console.log('📤 Uploading proof media for booking:', bookingId);
+      const uploadedMedia = [];
+
+      for (const item of media) {
+        const timestamp = Date.now();
+        const fileName = `proof_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
+        const path = `proof/${bookingId}`;
+
+        let result: UploadResult;
+        if (item.type === 'image') {
+          result = await this.uploadImage(item.uri, path, `${fileName}.jpg`);
+        } else {
+          result = await this.uploadVideo(item.uri, path, `${fileName}.mp4`);
+        }
+
+        uploadedMedia.push({
+          id: `proof_${timestamp}`,
+          type: item.type,
+          uri: result.url,
+          uploadedAt: new Date().toISOString(),
+        });
+      }
+
+      console.log('✅ All proof media uploaded successfully');
+      return uploadedMedia;
+    } catch (error) {
+      console.error('❌ Proof media upload failed:', error);
+      throw new Error('Failed to upload proof media');
+    }
+  },
+
   getStoragePath: {
     userProfile: (userId: string) => `profiles/${userId}`,
     userAvatar: (userId: string) => `profiles/${userId}`,
@@ -229,6 +266,7 @@ export const StorageService = {
     serviceImage: (serviceId: string) => `services/${serviceId}`,
     vehicleImage: (userId: string) => `vehicles/${userId}`,
     kycDocument: (userId: string) => `kyc/${userId}`,
+    proofMedia: (bookingId: string) => `proof/${bookingId}`,
   },
 };
 

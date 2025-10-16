@@ -193,3 +193,132 @@ export function subscribeToUserBookings(
 
   return unsubscribe;
 }
+
+export async function acceptBookingAsProvider(
+  bookingId: string,
+  providerId: string
+): Promise<void> {
+  try {
+    console.log('[Firestore] Provider accepting booking:', bookingId);
+    const docRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+    const booking = await getDoc(docRef);
+    
+    if (!booking.exists()) {
+      throw new Error('Booking not found');
+    }
+    
+    const bookingData = booking.data() as Booking;
+    if (bookingData.providerId !== providerId) {
+      throw new Error('Not authorized to accept this booking');
+    }
+    
+    if (bookingData.status !== 'pending') {
+      throw new Error('Booking is not in pending state');
+    }
+    
+    await updateDoc(docRef, {
+      status: 'accepted',
+      acceptedAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    console.log('[Firestore] Booking accepted successfully');
+  } catch (error) {
+    console.error('[Firestore] Error accepting booking:', error);
+    throw error;
+  }
+}
+
+export async function declineBookingAsProvider(
+  bookingId: string,
+  reason: string
+): Promise<void> {
+  try {
+    console.log('[Firestore] Provider declining booking:', bookingId);
+    const docRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+    await updateDoc(docRef, {
+      status: 'declined',
+      declineReason: reason,
+      declinedAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    console.log('[Firestore] Booking declined successfully');
+  } catch (error) {
+    console.error('[Firestore] Error declining booking:', error);
+    throw error;
+  }
+}
+
+export async function startWork(bookingId: string, providerId: string): Promise<void> {
+  try {
+    console.log('[Firestore] Starting work on booking:', bookingId);
+    const docRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+    const booking = await getDoc(docRef);
+    
+    if (!booking.exists()) {
+      throw new Error('Booking not found');
+    }
+    
+    const bookingData = booking.data() as Booking;
+    if (bookingData.providerId !== providerId) {
+      throw new Error('Not authorized to start this booking');
+    }
+    
+    if (bookingData.status !== 'accepted' && bookingData.status !== 'confirmed') {
+      throw new Error('Booking must be accepted or confirmed to start');
+    }
+    
+    await updateDoc(docRef, {
+      status: 'in-progress',
+      startedAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    
+    console.log('[Firestore] Work started successfully');
+  } catch (error) {
+    console.error('[Firestore] Error starting work:', error);
+    throw error;
+  }
+}
+
+export async function completeWork(
+  bookingId: string,
+  providerId: string,
+  proofMedia?: any[]
+): Promise<void> {
+  try {
+    console.log('[Firestore] Completing work on booking:', bookingId);
+    const docRef = doc(db, BOOKINGS_COLLECTION, bookingId);
+    const booking = await getDoc(docRef);
+    
+    if (!booking.exists()) {
+      throw new Error('Booking not found');
+    }
+    
+    const bookingData = booking.data() as Booking;
+    if (bookingData.providerId !== providerId) {
+      throw new Error('Not authorized to complete this booking');
+    }
+    
+    if (bookingData.status !== 'in-progress') {
+      throw new Error('Booking must be in-progress to complete');
+    }
+    
+    const updates: any = {
+      status: 'completed',
+      completedAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    };
+    
+    if (proofMedia && proofMedia.length > 0) {
+      updates.proofMedia = proofMedia;
+    }
+    
+    await updateDoc(docRef, updates);
+    
+    console.log('[Firestore] Work completed successfully');
+  } catch (error) {
+    console.error('[Firestore] Error completing work:', error);
+    throw error;
+  }
+}

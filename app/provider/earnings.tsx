@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import {
@@ -15,75 +17,27 @@ import {
   Download,
   ChevronRight,
   CreditCard,
+  AlertCircle,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
-
-interface Transaction {
-  id: string;
-  bookingId: string;
-  customerName: string;
-  service: string;
-  amount: number;
-  commission: number;
-  platformFee: number;
-  net: number;
-  date: string;
-  status: 'completed' | 'pending' | 'processing';
-}
-
-const mockTransactions: Transaction[] = [
-  {
-    id: '1',
-    bookingId: 'BK001',
-    customerName: 'Sarah Johnson',
-    service: 'Oil Change',
-    amount: 85.0,
-    commission: 12.75,
-    platformFee: 2.5,
-    net: 69.75,
-    date: '2025-10-10',
-    status: 'completed',
-  },
-  {
-    id: '2',
-    bookingId: 'BK002',
-    customerName: 'Mike Davis',
-    service: 'Brake Inspection',
-    amount: 170.0,
-    commission: 25.5,
-    platformFee: 2.5,
-    net: 142.0,
-    date: '2025-10-09',
-    status: 'completed',
-  },
-  {
-    id: '3',
-    bookingId: 'BK003',
-    customerName: 'Emily Chen',
-    service: 'AC Repair',
-    amount: 220.0,
-    commission: 33.0,
-    platformFee: 2.5,
-    net: 184.5,
-    date: '2025-10-08',
-    status: 'processing',
-  },
-];
+import { useEarnings } from '@/hooks/useEarnings';
 
 export default function EarningsScreen() {
   const { colors } = useTheme();
-  const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'year'>('month');
+  const { summary, transactions, isLoading, error, period: currentPeriod, changePeriod, exportCSV, refresh } = useEarnings();
 
-  const totalEarnings = mockTransactions.reduce((sum, t) => sum + t.amount, 0);
-  const totalCommission = mockTransactions.reduce((sum, t) => sum + t.commission, 0);
-  const totalFees = mockTransactions.reduce((sum, t) => sum + t.platformFee, 0);
-  const netEarnings = mockTransactions.reduce((sum, t) => sum + t.net, 0);
+  const handleExport = async () => {
+    const result = await exportCSV();
+    if (!result.success && result.error) {
+      console.error('Export failed:', result.error);
+    }
+  };
 
   const periods = [
-    { key: 'week' as const, label: 'Week' },
-    { key: 'month' as const, label: 'Month' },
-    { key: 'year' as const, label: 'Year' },
+    { key: 'weekly' as const, label: 'Week' },
+    { key: 'monthly' as const, label: 'Month' },
+    { key: 'all_time' as const, label: 'All Time' },
   ];
 
   return (
@@ -100,7 +54,28 @@ export default function EarningsScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={refresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
       >
+        {error && (
+          <View style={[styles.errorCard, { backgroundColor: `${colors.error}10` }]}>
+            <AlertCircle size={24} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+          </View>
+        )}
+
+        {isLoading && !summary ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading earnings...</Text>
+          </View>
+        ) : null}
         <View style={styles.periodSelector}>
           {periods.map(period => (
             <TouchableOpacity
@@ -109,18 +84,18 @@ export default function EarningsScreen() {
                 styles.periodButton,
                 {
                   backgroundColor:
-                    selectedPeriod === period.key ? colors.primary : colors.card,
+                    currentPeriod === period.key ? colors.primary : colors.card,
                   borderColor:
-                    selectedPeriod === period.key ? colors.primary : colors.border,
+                    currentPeriod === period.key ? colors.primary : colors.border,
                 },
               ]}
-              onPress={() => setSelectedPeriod(period.key)}
+              onPress={() => changePeriod(period.key)}
               activeOpacity={0.7}
             >
               <Text
                 style={[
                   styles.periodButtonText,
-                  { color: selectedPeriod === period.key ? '#1E1E1E' : colors.text },
+                  { color: currentPeriod === period.key ? '#1E1E1E' : colors.text },
                 ]}
               >
                 {period.label}
@@ -137,11 +112,11 @@ export default function EarningsScreen() {
         >
           <View style={styles.earningsHeader}>
             <Text style={styles.earningsLabel}>Net Earnings</Text>
-            <TouchableOpacity style={styles.downloadButton}>
+            <TouchableOpacity style={styles.downloadButton} onPress={handleExport}>
               <Download size={18} color="#1E1E1E" strokeWidth={2.5} />
             </TouchableOpacity>
           </View>
-          <Text style={styles.earningsAmount}>${netEarnings.toFixed(2)}</Text>
+          <Text style={styles.earningsAmount}>${(summary?.netEarnings || 0).toFixed(2)}</Text>
           <View style={styles.earningsStats}>
             <View style={styles.statItem}>
               <TrendingUp size={16} color="#1E1E1E" strokeWidth={2.5} />
@@ -158,25 +133,16 @@ export default function EarningsScreen() {
               Gross Earnings
             </Text>
             <Text style={[styles.breakdownValue, { color: colors.text }]}>
-              ${totalEarnings.toFixed(2)}
+              ${(summary?.grossEarnings || 0).toFixed(2)}
             </Text>
           </View>
 
           <View style={styles.breakdownRow}>
             <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>
-              Commission (15%)
+              Commission
             </Text>
             <Text style={[styles.breakdownValue, { color: colors.error }]}>
-              -${totalCommission.toFixed(2)}
-            </Text>
-          </View>
-
-          <View style={styles.breakdownRow}>
-            <Text style={[styles.breakdownLabel, { color: colors.textSecondary }]}>
-              Platform Fee
-            </Text>
-            <Text style={[styles.breakdownValue, { color: colors.error }]}>
-              -${totalFees.toFixed(2)}
+              -${(summary?.commission || 0).toFixed(2)}
             </Text>
           </View>
 
@@ -185,7 +151,7 @@ export default function EarningsScreen() {
           <View style={styles.breakdownRow}>
             <Text style={[styles.totalLabel, { color: colors.text }]}>Net Earnings</Text>
             <Text style={[styles.totalValue, { color: colors.primary }]}>
-              ${netEarnings.toFixed(2)}
+              ${(summary?.netEarnings || 0).toFixed(2)}
             </Text>
           </View>
         </View>
@@ -202,7 +168,7 @@ export default function EarningsScreen() {
               </View>
             </View>
             <Text style={[styles.payoutAmount, { color: colors.primary }]}>
-              ${netEarnings.toFixed(2)}
+              ${(summary?.pendingPayouts || 0).toFixed(2)}
             </Text>
           </View>
           <View style={[styles.payoutNote, { backgroundColor: `${colors.primary}10` }]}>
@@ -220,7 +186,7 @@ export default function EarningsScreen() {
             </TouchableOpacity>
           </View>
 
-          {mockTransactions.map(transaction => (
+          {transactions.slice(0, 10).map(transaction => (
             <TouchableOpacity
               key={transaction.id}
               style={[styles.transactionItem, { borderBottomColor: colors.border }]}
@@ -228,10 +194,10 @@ export default function EarningsScreen() {
             >
               <View style={styles.transactionInfo}>
                 <Text style={[styles.transactionCustomer, { color: colors.text }]}>
-                  {transaction.customerName}
+                  {transaction.type}
                 </Text>
                 <Text style={[styles.transactionService, { color: colors.textSecondary }]}>
-                  {transaction.service} • {transaction.date}
+                  {transaction.description} • {new Date(transaction.createdAt).toLocaleDateString()}
                 </Text>
                 <View style={styles.transactionBreakdown}>
                   <Text style={[styles.transactionBreakdownText, { color: colors.textLight }]}>
@@ -242,14 +208,14 @@ export default function EarningsScreen() {
               </View>
               <View style={styles.transactionRight}>
                 <Text style={[styles.transactionAmount, { color: colors.success }]}>
-                  +${transaction.net.toFixed(2)}
+                  +${transaction.netAmount.toFixed(2)}
                 </Text>
                 <View
                   style={[
                     styles.statusBadge,
                     {
                       backgroundColor:
-                        transaction.status === 'completed'
+                        transaction.status === 'captured'
                           ? `${colors.success}15`
                           : `${colors.primary}15`,
                     },
@@ -260,7 +226,7 @@ export default function EarningsScreen() {
                       styles.statusText,
                       {
                         color:
-                          transaction.status === 'completed' ? colors.success : colors.primary,
+                          transaction.status === 'captured' ? colors.success : colors.primary,
                       },
                     ]}
                   >
@@ -272,16 +238,19 @@ export default function EarningsScreen() {
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[styles.exportButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-          activeOpacity={0.7}
-        >
-          <Download size={20} color={colors.primary} strokeWidth={2.5} />
-          <Text style={[styles.exportButtonText, { color: colors.primary }]}>
-            Export Statement
-          </Text>
-          <ChevronRight size={20} color={colors.primary} strokeWidth={2.5} />
-        </TouchableOpacity>
+        {transactions.length > 0 && (
+          <TouchableOpacity
+            style={[styles.exportButton, { backgroundColor: colors.card, borderColor: colors.border }]}
+            activeOpacity={0.7}
+            onPress={handleExport}
+          >
+            <Download size={20} color={colors.primary} strokeWidth={2.5} />
+            <Text style={[styles.exportButtonText, { color: colors.primary }]}>
+              Export Statement
+            </Text>
+            <ChevronRight size={20} color={colors.primary} strokeWidth={2.5} />
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
@@ -553,5 +522,28 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     flex: 1,
     textAlign: 'center',
+  },
+  errorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  errorText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500' as const,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 15,
+    fontWeight: '500' as const,
   },
 });
