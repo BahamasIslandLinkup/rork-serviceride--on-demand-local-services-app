@@ -14,71 +14,81 @@ import { Stack, useRouter } from 'expo-router';
 import { Briefcase, Plus, X, ChevronRight, DollarSign } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useProvider } from '@/contexts/ProviderContext';
 import { serviceCategories } from '@/mocks/services';
-
-interface Service {
-  id: string;
-  category: string;
-  title: string;
-  description: string;
-  price: number;
-  pricingType: 'fixed' | 'hourly';
-}
 
 export default function ServicesScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { profile, createService, updateService } = useProvider();
 
-  const [services, setServices] = useState<Service[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [pricingType, setPricingType] = useState<'fixed' | 'hourly'>('fixed');
+  const [priceType, setPriceType] = useState<'fixed' | 'hourly'>('fixed');
   const [saving, setSaving] = useState(false);
 
-  const handleAddService = () => {
+  const handleAddService = async () => {
     if (!selectedCategory || !title || !description || !price) {
       Alert.alert('Incomplete', 'Please fill in all fields');
       return;
     }
 
-    const newService: Service = {
-      id: Date.now().toString(),
-      category: selectedCategory,
-      title,
-      description,
-      price: parseFloat(price),
-      pricingType,
-    };
+    setSaving(true);
+    try {
+      const result = await createService({
+        category: selectedCategory,
+        title,
+        description,
+        price: parseFloat(price),
+        priceType,
+        isActive: true,
+      });
 
-    setServices(prev => [...prev, newService]);
-    setShowAddForm(false);
-    setSelectedCategory('');
-    setTitle('');
-    setDescription('');
-    setPrice('');
-    setPricingType('fixed');
+      if (result.success) {
+        setShowAddForm(false);
+        setSelectedCategory('');
+        setTitle('');
+        setDescription('');
+        setPrice('');
+        setPriceType('fixed');
+      } else {
+        Alert.alert('Error', result.error || 'Failed to add service');
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleRemoveService = (id: string) => {
-    setServices(prev => prev.filter(s => s.id !== id));
+  const handleRemoveService = async (id: string) => {
+    Alert.alert(
+      'Remove Service',
+      'Are you sure you want to remove this service?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            if (profile) {
+              await updateService(id, { isActive: false });
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleContinue = async () => {
-    if (services.length === 0) {
+    const currentServices = profile?.services || [];
+    if (currentServices.length === 0) {
       Alert.alert('No Services', 'Please add at least one service');
       return;
     }
 
-    setSaving(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      router.push('/onboarding/availability' as any);
-    } finally {
-      setSaving(false);
-    }
+    router.push('/onboarding/availability' as any);
   };
 
   return (
@@ -106,9 +116,9 @@ export default function ServicesScreen() {
           </Text>
         </View>
 
-        {services.length > 0 && (
+        {profile?.services && profile.services.length > 0 && (
           <View style={styles.servicesContainer}>
-            {services.map(service => (
+            {profile.services.map(service => (
               <View key={service.id} style={[styles.serviceCard, { backgroundColor: colors.card }]}>
                 <View style={styles.serviceHeader}>
                   <View style={styles.serviceInfo}>
@@ -133,7 +143,7 @@ export default function ServicesScreen() {
                   <DollarSign size={16} color={colors.primary} />
                   <Text style={[styles.servicePrice, { color: colors.primary }]}>
                     ${service.price.toFixed(2)}
-                    {service.pricingType === 'hourly' ? '/hr' : ''}
+                    {service.priceType === 'hourly' ? '/hr' : ''}
                   </Text>
                 </View>
               </View>
@@ -224,16 +234,16 @@ export default function ServicesScreen() {
                     style={[
                       styles.pricingTypeButton,
                       {
-                        backgroundColor: pricingType === 'fixed' ? colors.primary : colors.background,
-                        borderColor: pricingType === 'fixed' ? colors.primary : colors.border,
+                        backgroundColor: priceType === 'fixed' ? colors.primary : colors.background,
+                        borderColor: priceType === 'fixed' ? colors.primary : colors.border,
                       },
                     ]}
-                    onPress={() => setPricingType('fixed')}
+                    onPress={() => setPriceType('fixed')}
                   >
                     <Text
                       style={[
                         styles.pricingTypeText,
-                        { color: pricingType === 'fixed' ? '#1E1E1E' : colors.text },
+                        { color: priceType === 'fixed' ? '#1E1E1E' : colors.text },
                       ]}
                     >
                       Fixed
@@ -243,16 +253,16 @@ export default function ServicesScreen() {
                     style={[
                       styles.pricingTypeButton,
                       {
-                        backgroundColor: pricingType === 'hourly' ? colors.primary : colors.background,
-                        borderColor: pricingType === 'hourly' ? colors.primary : colors.border,
+                        backgroundColor: priceType === 'hourly' ? colors.primary : colors.background,
+                        borderColor: priceType === 'hourly' ? colors.primary : colors.border,
                       },
                     ]}
-                    onPress={() => setPricingType('hourly')}
+                    onPress={() => setPriceType('hourly')}
                   >
                     <Text
                       style={[
                         styles.pricingTypeText,
-                        { color: pricingType === 'hourly' ? '#1E1E1E' : colors.text },
+                        { color: priceType === 'hourly' ? '#1E1E1E' : colors.text },
                       ]}
                     >
                       Hourly
@@ -282,9 +292,9 @@ export default function ServicesScreen() {
 
       <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
         <TouchableOpacity
-          style={[styles.continueButton, { opacity: services.length > 0 && !saving ? 1 : 0.5 }]}
+          style={[styles.continueButton, { opacity: (profile?.services?.length || 0) > 0 && !saving ? 1 : 0.5 }]}
           onPress={handleContinue}
-          disabled={services.length === 0 || saving}
+          disabled={(profile?.services?.length || 0) === 0 || saving}
           activeOpacity={0.8}
         >
           <LinearGradient

@@ -13,6 +13,8 @@ import { Stack, useRouter } from 'expo-router';
 import { Calendar, Clock, ChevronRight, CheckCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useProvider } from '@/contexts/ProviderContext';
+import type { AvailabilitySlot } from '@/types';
 
 interface TimeSlot {
   start: string;
@@ -32,8 +34,9 @@ const DEFAULT_SLOT: TimeSlot = { start: '09:00', end: '17:00' };
 export default function AvailabilityScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { setAvailability } = useProvider();
 
-  const [availability, setAvailability] = useState<DayAvailability[]>(
+  const [localAvailability, setLocalAvailability] = useState<DayAvailability[]>(
     DAYS.map(day => ({
       day,
       enabled: day !== 'Sunday',
@@ -43,7 +46,7 @@ export default function AvailabilityScreen() {
   const [saving, setSaving] = useState(false);
 
   const toggleDay = (index: number) => {
-    setAvailability(prev =>
+    setLocalAvailability(prev =>
       prev.map((item, i) =>
         i === index ? { ...item, enabled: !item.enabled } : item
       )
@@ -51,7 +54,7 @@ export default function AvailabilityScreen() {
   };
 
   const handleContinue = async () => {
-    const enabledDays = availability.filter(d => d.enabled);
+    const enabledDays = localAvailability.filter(d => d.enabled);
     if (enabledDays.length === 0) {
       Alert.alert('No Availability', 'Please select at least one day');
       return;
@@ -59,8 +62,29 @@ export default function AvailabilityScreen() {
 
     setSaving(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      router.push('/onboarding/complete' as any);
+      const dayMap: { [key: string]: number } = {
+        'Monday': 1,
+        'Tuesday': 2,
+        'Wednesday': 3,
+        'Thursday': 4,
+        'Friday': 5,
+        'Saturday': 6,
+        'Sunday': 0,
+      };
+
+      const slots: AvailabilitySlot[] = enabledDays.map(day => ({
+        dayOfWeek: dayMap[day.day],
+        startTime: day.slots[0].start,
+        endTime: day.slots[0].end,
+        isAvailable: true,
+      }));
+
+      const result = await setAvailability(slots);
+      if (result.success) {
+        router.push('/onboarding/coverage' as any);
+      } else {
+        Alert.alert('Error', result.error || 'Failed to set availability');
+      }
     } finally {
       setSaving(false);
     }
@@ -87,12 +111,12 @@ export default function AvailabilityScreen() {
           </View>
           <Text style={[styles.title, { color: colors.text }]}>Set Your Availability</Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Choose the days and times you're available to work
+            Choose the days and times you&apos;re available to work
           </Text>
         </View>
 
         <View style={styles.daysContainer}>
-          {availability.map((item, index) => (
+          {localAvailability.map((item, index) => (
             <View
               key={item.day}
               style={[
@@ -147,10 +171,10 @@ export default function AvailabilityScreen() {
         <TouchableOpacity
           style={[
             styles.continueButton,
-            { opacity: availability.some(d => d.enabled) && !saving ? 1 : 0.5 },
+            { opacity: localAvailability.some(d => d.enabled) && !saving ? 1 : 0.5 },
           ]}
           onPress={handleContinue}
-          disabled={!availability.some(d => d.enabled) || saving}
+          disabled={!localAvailability.some(d => d.enabled) || saving}
           activeOpacity={0.8}
         >
           <LinearGradient

@@ -11,14 +11,18 @@ import { CheckCircle, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProvider } from '@/contexts/ProviderContext';
 
 export default function OnboardingCompleteScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { updateUser } = useAuth();
+  const { onboardingProgress, canGoOnline } = useProvider();
 
   const handleComplete = async () => {
-    await updateUser({ kycStatus: 'approved' });
+    if (!onboardingProgress.isComplete) {
+      return;
+    }
     router.replace('/(tabs)');
   };
 
@@ -31,9 +35,9 @@ export default function OnboardingCompleteScreen() {
           <CheckCircle size={80} color={colors.success} strokeWidth={2.5} />
         </View>
 
-        <Text style={[styles.title, { color: colors.text }]}>You're All Set!</Text>
+        <Text style={[styles.title, { color: colors.text }]}>You&apos;re All Set!</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Your provider profile is complete. You can now start receiving bookings from customers.
+          Your provider profile is complete. {canGoOnline ? "You can now go online and start receiving bookings!" : "Your KYC is under review. You&apos;ll be notified once approved."}
         </Text>
 
         <View style={styles.stepsContainer}>
@@ -44,7 +48,7 @@ export default function OnboardingCompleteScreen() {
             <View style={styles.stepContent}>
               <Text style={[styles.stepTitle, { color: colors.text }]}>Identity Verified</Text>
               <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
-                Your documents are under review
+                {onboardingProgress.kycCompleted ? "Verified" : "Under review"}
               </Text>
             </View>
           </View>
@@ -56,7 +60,7 @@ export default function OnboardingCompleteScreen() {
             <View style={styles.stepContent}>
               <Text style={[styles.stepTitle, { color: colors.text }]}>Services Added</Text>
               <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
-                Customers can now find your services
+                {onboardingProgress.servicesCompleted ? "Services configured" : "Pending"}
               </Text>
             </View>
           </View>
@@ -68,7 +72,7 @@ export default function OnboardingCompleteScreen() {
             <View style={styles.stepContent}>
               <Text style={[styles.stepTitle, { color: colors.text }]}>Availability Set</Text>
               <Text style={[styles.stepDescription, { color: colors.textSecondary }]}>
-                You'll receive bookings during your hours
+                {onboardingProgress.availabilityCompleted ? "Availability set" : "Pending"}
               </Text>
             </View>
           </View>
