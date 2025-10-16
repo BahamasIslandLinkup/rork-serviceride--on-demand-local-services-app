@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { LocationProvider } from "@/contexts/LocationContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ProviderContextProvider } from "@/contexts/ProviderContext";
 import { AdminProvider } from "@/contexts/AdminContext";
 import { PaymentProvider } from "@/contexts/PaymentContext";
 import { CartProvider } from "@/contexts/CartContext";
@@ -126,19 +127,21 @@ export default function RootLayout() {
         <ThemeProvider>
           <AdminProvider>
             <AuthProvider>
-              <NotificationProvider>
-                <BookingProvider>
-                  <PaymentProvider>
-                    <LocationProvider>
-                      <CartProvider>
-                        <GestureHandlerRootView style={{ flex: 1 }}>
-                          <RootLayoutNav />
-                        </GestureHandlerRootView>
-                      </CartProvider>
-                    </LocationProvider>
-                  </PaymentProvider>
-                </BookingProvider>
-              </NotificationProvider>
+              <ProviderContextProvider>
+                <NotificationProvider>
+                  <BookingProvider>
+                    <PaymentProvider>
+                      <LocationProvider>
+                        <CartProvider>
+                          <GestureHandlerRootView style={{ flex: 1 }}>
+                            <RootLayoutNav />
+                          </GestureHandlerRootView>
+                        </CartProvider>
+                      </LocationProvider>
+                    </PaymentProvider>
+                  </BookingProvider>
+                </NotificationProvider>
+              </ProviderContextProvider>
             </AuthProvider>
           </AdminProvider>
         </ThemeProvider>

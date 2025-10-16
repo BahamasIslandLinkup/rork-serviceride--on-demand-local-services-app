@@ -299,3 +299,142 @@ export type Cart = {
   items: CartItem[];
   providerId?: string;
 };
+
+export type KYCDocument = {
+  id: string;
+  type: 'id' | 'license' | 'insurance' | 'business_license';
+  uri: string;
+  status: 'pending' | 'approved' | 'rejected';
+  uploadedAt: string;
+  reviewedAt?: string;
+  notes?: string;
+};
+
+export type ServiceOffering = {
+  id: string;
+  providerId: string;
+  category: string;
+  title: string;
+  description: string;
+  priceType: 'fixed' | 'hourly';
+  price: number;
+  duration?: number;
+  coverageKm?: number;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type AvailabilitySlot = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+};
+
+export type ProviderAvailability = {
+  slots: AvailabilitySlot[];
+  timezone: string;
+  blackoutDates?: string[];
+};
+
+export type BankAccount = {
+  id: string;
+  accountHolderName: string;
+  accountType: 'checking' | 'savings';
+  bankName: string;
+  last4: string;
+  isLinked: boolean;
+  linkedAt?: string;
+};
+
+export type ProviderMetrics = {
+  totalJobs: number;
+  completedJobs: number;
+  cancelledJobs: number;
+  averageRating: number;
+  totalReviews: number;
+  responseTimeMinutes: number;
+  completionRate: number;
+  onTimeRate: number;
+};
+
+export type ProviderProfile = {
+  id: string;
+  userId: string;
+  businessName?: string;
+  bio?: string;
+  kycStatus: 'pending' | 'approved' | 'rejected';
+  kycDocuments: KYCDocument[];
+  services: ServiceOffering[];
+  availability: ProviderAvailability;
+  coverageKm: number;
+  bankAccount?: BankAccount;
+  vehicleInfo?: VehicleInfo;
+  isOnline: boolean;
+  isBusy: boolean;
+  metrics: ProviderMetrics;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EarningsSummary = {
+  period: 'daily' | 'weekly' | 'monthly' | 'all_time';
+  grossEarnings: number;
+  commission: number;
+  netEarnings: number;
+  pendingPayouts: number;
+  completedPayouts: number;
+  totalTransactions: number;
+};
+
+export type TransactionType = 'booking' | 'tip' | 'refund' | 'adjustment';
+
+export type TransactionDetail = {
+  id: string;
+  bookingId?: string;
+  providerId: string;
+  type: TransactionType;
+  amount: number;
+  commission: number;
+  platformFee: number;
+  netAmount: number;
+  status: 'pending' | 'authorized' | 'captured' | 'refunded' | 'failed';
+  description: string;
+  createdAt: string;
+  capturedAt?: string;
+};
+
+export type PayoutSchedule = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'manual';
+
+export type PayoutDetail = {
+  id: string;
+  providerId: string;
+  amount: number;
+  transactionIds: string[];
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  scheduledDate: string;
+  completedDate?: string;
+  failureReason?: string;
+};
+
+export type ProofMedia = {
+  id: string;
+  type: 'image' | 'video';
+  uri: string;
+  thumbnailUri?: string;
+  uploadedAt: string;
+};
+
+export type OnboardingStep = 'kyc' | 'services' | 'pricing' | 'availability' | 'coverage' | 'bank';
+
+export type OnboardingProgress = {
+  currentStep: OnboardingStep;
+  completedSteps: OnboardingStep[];
+  kycCompleted: boolean;
+  servicesCompleted: boolean;
+  pricingCompleted: boolean;
+  availabilityCompleted: boolean;
+  coverageCompleted: boolean;
+  bankCompleted: boolean;
+  isComplete: boolean;
+};

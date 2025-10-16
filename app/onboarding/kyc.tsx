@@ -16,6 +16,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProvider } from '@/contexts/ProviderContext';
+import type { KYCDocument } from '@/types';
 
 type DocumentType = 'id_front' | 'id_back' | 'selfie';
 
@@ -29,6 +31,7 @@ export default function KYCScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { updateUser } = useAuth();
+  const { submitKYC } = useProvider();
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -103,16 +106,28 @@ export default function KYCScreen() {
     setUploading(true);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const kycDocs: KYCDocument[] = documents.map((doc, index) => ({
+        id: `kyc_${Date.now()}_${index}`,
+        type: doc.type === 'selfie' ? 'id' : 'id',
+        uri: doc.uri,
+        status: 'pending' as const,
+        uploadedAt: new Date().toISOString(),
+      }));
 
-      await updateUser({ kycStatus: 'pending' });
-
-      Alert.alert(
-        'KYC Submitted',
-        'Your documents have been submitted for review. This usually takes 1-2 business days.',
-        [{ text: 'Continue', onPress: () => router.push('/onboarding/services' as any) }]
-      );
+      const result = await submitKYC(kycDocs);
+      
+      if (result.success) {
+        await updateUser({ kycStatus: 'pending' });
+        Alert.alert(
+          'KYC Submitted',
+          'Your documents have been submitted for review. This usually takes 1-2 business days.',
+          [{ text: 'Continue', onPress: () => router.push('/onboarding/services' as any) }]
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to submit documents');
+      }
     } catch (error) {
+      console.error('[KYC] Submit error:', error);
       Alert.alert('Error', 'Failed to submit documents. Please try again.');
     } finally {
       setUploading(false);
