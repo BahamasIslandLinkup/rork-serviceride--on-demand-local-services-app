@@ -16,6 +16,7 @@ import { serviceProviders } from '@/mocks/services';
 import colors from '@/constants/colors';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBooking } from '@/contexts/BookingContext';
+import { useCart } from '@/contexts/CartContext';
 
 const timeSlots = [
   '8:00 AM',
@@ -35,6 +36,7 @@ export default function BookingScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { createBooking, isLoading: bookingLoading } = useBooking();
+  const { clearCart } = useCart();
   const provider = serviceProviders.find((p) => p.id === id);
 
   const [selectedDate, setSelectedDate] = useState('2025-10-12');
@@ -87,6 +89,7 @@ export default function BookingScreen() {
       });
 
       if (result.success) {
+        clearCart();
         Alert.alert(
           'Booking Created!',
           `Your booking with ${provider.name} has been created for ${selectedDate} at ${selectedTime}`,

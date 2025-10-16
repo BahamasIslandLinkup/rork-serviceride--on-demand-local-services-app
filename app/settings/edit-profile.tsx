@@ -18,6 +18,7 @@ import { Stack, useRouter } from 'expo-router';
 import { Camera, User, Phone, Mail, Briefcase, MapPin, Save } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { StorageService } from '@/services/storage';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function EditProfileScreen() {
   const { user, updateProfile } = useAuth();
   
   const [loading, setLoading] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -33,7 +35,39 @@ export default function EditProfileScreen() {
     businessName: user?.businessName || '',
     serviceCategories: user?.serviceCategories || [],
     serviceRadius: user?.serviceRadius || 10,
+    avatar: user?.avatar || '',
   });
+
+  const handlePickImage = async () => {
+    if (!user?.id) {
+      Alert.alert('Error', 'Please sign in again to update your profile photo.');
+      return;
+    }
+
+    try {
+      setIsUploadingPhoto(true);
+      const result = await StorageService.pickAndUploadImage(`profiles/${user.id}`, {
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result) {
+        return;
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        avatar: result.url,
+      }));
+      Alert.alert('Success', 'Profile photo updated. Don\'t forget to save your changes.');
+    } catch (error) {
+      console.error('[EditProfile] Photo update failed:', error);
+      Alert.alert('Error', 'Failed to update profile photo. Please try again.');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
@@ -84,14 +118,24 @@ export default function EditProfileScreen() {
         <View style={styles.avatarSection}>
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: user?.avatar || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80' }}
+              source={{
+                uri:
+                  formData.avatar ||
+                  user?.avatar ||
+                  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&q=80',
+              }}
               style={styles.avatar}
             />
             <TouchableOpacity
               style={[styles.cameraButton, { backgroundColor: colors.primary }]}
-              onPress={() => Alert.alert('Coming Soon', 'Photo upload will be available soon')}
+              onPress={handlePickImage}
+              disabled={isUploadingPhoto}
             >
-              <Camera size={20} color="#1E1E1E" />
+              {isUploadingPhoto ? (
+                <ActivityIndicator size="small" color="#1E1E1E" />
+              ) : (
+                <Camera size={20} color="#1E1E1E" />
+              )}
             </TouchableOpacity>
           </View>
           <Text style={[styles.avatarHint, { color: colors.textSecondary }]}>

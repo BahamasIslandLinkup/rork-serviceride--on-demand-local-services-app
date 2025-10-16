@@ -1,8 +1,17 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
-import { initializeAuth, getAuth, Auth, connectAuthEmulator, browserLocalPersistence, indexedDBLocalPersistence } from 'firebase/auth';
+import {
+  initializeAuth,
+  getAuth,
+  Auth,
+  connectAuthEmulator,
+  browserLocalPersistence,
+  indexedDBLocalPersistence,
+  getReactNativePersistence,
+} from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
 import { Platform, LogBox } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || "AIzaSyAt__1VR0GlFLxvRsg_laYlyVgwNsO3XSA",
@@ -53,6 +62,10 @@ try {
     if (Platform.OS === 'web') {
       auth = initializeAuth(app, {
         persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      });
+    } else if (isNewAppInstance) {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
       });
     } else {
       auth = getAuth(app);

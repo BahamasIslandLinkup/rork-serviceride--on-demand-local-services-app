@@ -9,6 +9,7 @@ import {
   Dimensions,
   Modal,
   Platform,
+  Alert,
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
@@ -58,15 +59,53 @@ export default function ProviderScreen() {
     return null;
   }
 
+  const resetSelection = () => {
+    setSelectedItem(null);
+    setSelectedVariantId(undefined);
+    setSelectedAddOnIds([]);
+    setQuantity(1);
+  };
+
   const handleAddToCart = () => {
     if (!selectedItem) return;
-    
-    const success = addToCart(selectedItem, quantity, selectedVariantId, selectedAddOnIds);
-    if (success) {
-      setSelectedItem(null);
-      setSelectedVariantId(undefined);
-      setSelectedAddOnIds([]);
-      setQuantity(1);
+
+    const itemToAdd = selectedItem;
+    const variantToAdd = selectedVariantId;
+    const addOnsToAdd = [...selectedAddOnIds];
+    const quantityToAdd = quantity;
+
+    const result = addToCart(itemToAdd, quantityToAdd, variantToAdd, addOnsToAdd);
+
+    if (result.success) {
+      resetSelection();
+      return;
+    }
+
+    if (result.reason === 'different_provider') {
+      Alert.alert(
+        'Replace Cart Items?',
+        'Your cart already has services from another provider. Replace them with this selection?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Replace',
+            style: 'destructive',
+            onPress: () => {
+              const retryResult = addToCart(
+                itemToAdd,
+                quantityToAdd,
+                variantToAdd,
+                addOnsToAdd,
+                { replaceExisting: true }
+              );
+
+              if (retryResult.success) {
+                resetSelection();
+              }
+            },
+          },
+        ]
+      );
     }
   };
 
@@ -138,7 +177,10 @@ export default function ProviderScreen() {
                   {provider.category}
                 </Text>
               </View>
-              <TouchableOpacity style={[styles.messageButton, { backgroundColor: colors.primary + '15' }]}>
+              <TouchableOpacity
+                style={[styles.messageButton, { backgroundColor: colors.primary + '15' }]}
+                onPress={() => router.push(`/chat/${provider.id}` as any)}
+              >
                 <MessageCircle size={20} color={colors.primary} />
               </TouchableOpacity>
             </View>

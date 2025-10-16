@@ -68,7 +68,11 @@ export default function BookingsScreen() {
     (b) => b.status === 'pending_confirmation'
   );
   const activeBookings = bookings.filter(
-    (b) => b.status === 'pending' || b.status === 'accepted' || b.status === 'in-progress'
+    (b) =>
+      b.status === 'pending' ||
+      b.status === 'accepted' ||
+      b.status === 'confirmed' ||
+      b.status === 'in-progress'
   );
   const pastBookings = bookings.filter(
     (b) => b.status === 'completed' || b.status === 'cancelled'
@@ -90,6 +94,7 @@ export default function BookingsScreen() {
       case 'pending_confirmation':
         return colors.warning;
       case 'accepted':
+      case 'confirmed':
         return colors.success;
       case 'declined':
         return colors.error;
@@ -107,28 +112,10 @@ export default function BookingsScreen() {
   };
 
   const getStatusText = (status: Booking['status']) => {
-    return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
-  };
-
-  const getStatusIcon = (status: Booking['status']) => {
-    switch (status) {
-      case 'pending_confirmation':
-        return '⏳';
-      case 'accepted':
-        return '✓';
-      case 'declined':
-        return '✕';
-      case 'pending':
-        return '⋯';
-      case 'in-progress':
-        return '▶';
-      case 'completed':
-        return '✓';
-      case 'cancelled':
-        return '✕';
-      default:
-        return '';
-    }
+    const formatted = status
+      .replace(/[_-]/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+    return formatted;
   };
 
   const formatPrice = (price: number) => {
@@ -318,145 +305,140 @@ export default function BookingsScreen() {
                 )}
               </View>
             ) : (
-              displayBookings.map((booking) => (
-                <Pressable
-                  key={booking.id}
-                  style={({ pressed }) => [
-                    styles.bookingCard,
-                    { backgroundColor: '#1A1F3A' },
-                    pressed && styles.cardPressed,
-                  ]}
-                  onPress={() => router.push(`/booking-detail/${booking.id}` as any)}
-                >
-                  <LinearGradient
-                    colors={['#1A1F3A', '#151933']}
-                    style={styles.cardGradient}
-                  >
-                    <View style={styles.cardHeader}>
-                      <View style={styles.providerSection}>
-                        <View style={styles.imageWrapper}>
-                          <Image
-                            source={{ uri: booking.providerImage }}
-                            style={styles.providerImage}
-                          />
-                          {booking.status === 'pending_confirmation' && (
-                            <View style={styles.pulsingDotContainer}>
-                              <PulsingDot />
-                            </View>
-                          )}
-                        </View>
-                        <View style={styles.bookingInfo}>
-                          <Text style={[styles.providerName, { color: '#FFFFFF' }]} numberOfLines={1}>
-                            {booking.providerName}
-                          </Text>
-                          <Text style={[styles.service, { color: colors.primary }]} numberOfLines={1}>
-                            {booking.service}
-                          </Text>
-                          <Text style={[styles.category, { color: '#6B7199' }]} numberOfLines={1}>
-                            {booking.category}
-                          </Text>
-                        </View>
-                      </View>
+              displayBookings.map((booking) => {
+                const statusColor = getStatusColor(booking.status);
+                const statusText = getStatusText(booking.status);
 
-                      <View style={styles.priceSection}>
-                        <Text style={[styles.price, { color: colors.primary }]}>
-                          {formatPrice(booking.price)}
-                        </Text>
-                        <View
-                          style={[
-                            styles.statusBadge,
-                            {
-                              backgroundColor:
-                                booking.status === 'pending_confirmation'
-                                  ? `${colors.warning}20`
-                                  : booking.status === 'accepted' || booking.status === 'in-progress'
-                                  ? `${colors.success}20`
-                                  : `${colors.textSecondary}20`,
-                            },
-                          ]}
-                        >
-                          <Text
+                return (
+                  <Pressable
+                    key={booking.id}
+                    style={({ pressed }) => [
+                      styles.bookingCard,
+                      { backgroundColor: '#1A1F3A' },
+                      pressed && styles.cardPressed,
+                    ]}
+                    onPress={() => router.push(`/booking-detail/${booking.id}` as any)}
+                  >
+                    <LinearGradient
+                      colors={['#1A1F3A', '#151933']}
+                      style={styles.cardGradient}
+                    >
+                      <View style={styles.cardHeader}>
+                        <View style={styles.providerSection}>
+                          <View style={styles.imageWrapper}>
+                            <Image
+                              source={{ uri: booking.providerImage }}
+                              style={styles.providerImage}
+                            />
+                            {booking.status === 'pending_confirmation' && (
+                              <View style={styles.pulsingDotContainer}>
+                                <PulsingDot />
+                              </View>
+                            )}
+                          </View>
+                          <View style={styles.bookingInfo}>
+                            <Text style={[styles.providerName, { color: '#FFFFFF' }]} numberOfLines={1}>
+                              {booking.providerName}
+                            </Text>
+                            <Text style={[styles.service, { color: colors.primary }]} numberOfLines={1}>
+                              {booking.service}
+                            </Text>
+                            <Text style={[styles.category, { color: '#6B7199' }]} numberOfLines={1}>
+                              {booking.category}
+                            </Text>
+                          </View>
+                        </View>
+
+                        <View style={styles.priceSection}>
+                          <Text style={[styles.price, { color: colors.primary }]}>
+                            {formatPrice(booking.price)}
+                          </Text>
+                          <View
                             style={[
-                              styles.statusText,
+                              styles.statusBadge,
                               {
-                                color:
-                                  booking.status === 'pending_confirmation'
-                                    ? colors.warning
-                                    : booking.status === 'accepted' || booking.status === 'in-progress'
-                                    ? colors.success
-                                    : '#8B92B0',
+                                backgroundColor: `${statusColor}20`,
                               },
                             ]}
                           >
-                            {getStatusText(booking.status)}
+                            <Text
+                              style={[
+                                styles.statusText,
+                                {
+                                  color: statusColor,
+                                },
+                              ]}
+                            >
+                              {statusText}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      {booking.status === 'pending_confirmation' && (
+                        <View style={[styles.awaitingBanner, { backgroundColor: `${colors.warning}15` }]}>
+                          <Clock size={14} color={colors.warning} strokeWidth={2} />
+                          <Text style={[styles.awaitingText, { color: colors.warning }]}>
+                            Awaiting merchant confirmation...
+                          </Text>
+                        </View>
+                      )}
+
+                      <View style={[styles.divider, { backgroundColor: '#2A2F4A' }]} />
+
+                      <View style={styles.bookingDetails}>
+                        <View style={styles.detailRow}>
+                          <View style={[styles.iconCircle, { backgroundColor: `${colors.primary}15` }]}>
+                            <Calendar size={14} color={colors.primary} strokeWidth={2} />
+                          </View>
+                          <Text style={[styles.detailText, { color: '#8B92B0' }]}>{booking.date}</Text>
+                        </View>
+                        <View style={styles.detailRow}>
+                          <View style={[styles.iconCircle, { backgroundColor: `${colors.primary}15` }]}>
+                            <Clock size={14} color={colors.primary} strokeWidth={2} />
+                          </View>
+                          <Text style={[styles.detailText, { color: '#8B92B0' }]}>{booking.time}</Text>
+                        </View>
+                        <View style={styles.detailRow}>
+                          <View style={[styles.iconCircle, { backgroundColor: `${colors.primary}15` }]}>
+                            <MapPin size={14} color={colors.primary} strokeWidth={2} />
+                          </View>
+                          <Text style={[styles.detailText, { color: '#8B92B0' }]} numberOfLines={1}>
+                            {booking.address}
                           </Text>
                         </View>
                       </View>
-                    </View>
 
-                    {booking.status === 'pending_confirmation' && (
-                      <View style={[styles.awaitingBanner, { backgroundColor: `${colors.warning}15` }]}>
-                        <Clock size={14} color={colors.warning} strokeWidth={2} />
-                        <Text style={[styles.awaitingText, { color: colors.warning }]}>
-                          Awaiting merchant confirmation...
-                        </Text>
-                      </View>
-                    )}
-
-                    <View style={[styles.divider, { backgroundColor: '#2A2F4A' }]} />
-
-                    <View style={styles.bookingDetails}>
-                      <View style={styles.detailRow}>
-                        <View style={[styles.iconCircle, { backgroundColor: `${colors.primary}15` }]}>
-                          <Calendar size={14} color={colors.primary} strokeWidth={2} />
-                        </View>
-                        <Text style={[styles.detailText, { color: '#8B92B0' }]}>{booking.date}</Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <View style={[styles.iconCircle, { backgroundColor: `${colors.primary}15` }]}>
-                          <Clock size={14} color={colors.primary} strokeWidth={2} />
-                        </View>
-                        <Text style={[styles.detailText, { color: '#8B92B0' }]}>{booking.time}</Text>
-                      </View>
-                      <View style={styles.detailRow}>
-                        <View style={[styles.iconCircle, { backgroundColor: `${colors.primary}15` }]}>
-                          <MapPin size={14} color={colors.primary} strokeWidth={2} />
-                        </View>
-                        <Text style={[styles.detailText, { color: '#8B92B0' }]} numberOfLines={1}>
-                          {booking.address}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {(activeTab === 'active' || activeTab === 'awaiting') && (
-                      <View style={styles.actionButtons}>
-                        {booking.status === 'accepted' && booking.providerLocation && (
+                      {(activeTab === 'active' || activeTab === 'awaiting') && (
+                        <View style={styles.actionButtons}>
+                          {(booking.status === 'accepted' || booking.status === 'confirmed') && booking.providerLocation && (
+                            <TouchableOpacity
+                              style={[styles.trackButton, { borderColor: colors.primary }]}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                router.push(`/tracking/${booking.id}` as any);
+                              }}
+                            >
+                              <Navigation size={16} color={colors.primary} strokeWidth={2.5} />
+                              <Text style={[styles.trackButtonText, { color: colors.primary }]}>Track</Text>
+                            </TouchableOpacity>
+                          )}
                           <TouchableOpacity
-                            style={[styles.trackButton, { borderColor: colors.primary }]}
+                            style={[styles.viewDetailsButton, { backgroundColor: colors.primary }]}
                             onPress={(e) => {
                               e.stopPropagation();
-                              router.push(`/tracking/${booking.id}` as any);
+                              router.push(`/booking-detail/${booking.id}` as any);
                             }}
                           >
-                            <Navigation size={16} color={colors.primary} strokeWidth={2.5} />
-                            <Text style={[styles.trackButtonText, { color: colors.primary }]}>Track</Text>
+                            <Text style={styles.viewDetailsText}>View Details</Text>
+                            <ArrowRight size={16} color="#0A0E27" strokeWidth={2.5} />
                           </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                          style={[styles.viewDetailsButton, { backgroundColor: colors.primary }]}
-                          onPress={(e) => {
-                            e.stopPropagation();
-                            router.push(`/booking-detail/${booking.id}` as any);
-                          }}
-                        >
-                          <Text style={styles.viewDetailsText}>View Details</Text>
-                          <ArrowRight size={16} color="#0A0E27" strokeWidth={2.5} />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </LinearGradient>
-                </Pressable>
-              ))
+                        </View>
+                      )}
+                    </LinearGradient>
+                  </Pressable>
+                );
+              })
             )}
           </ScrollView>
         </SafeAreaView>
