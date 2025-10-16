@@ -10,7 +10,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocFromCache } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import type { User } from '@/types';
 
@@ -74,9 +74,31 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
           try {
             if (firebaseUser) {
               const userDocRef = doc(db, 'users', firebaseUser.uid);
-              const userDoc = await getDoc(userDocRef);
+              
+              let userDoc;
+              try {
+                userDoc = await getDoc(userDocRef);
+              } catch (firestoreError: any) {
+                if (firestoreError.code === 'unavailable') {
+                  console.log('[Auth] Firestore unavailable, trying cache...');
+                  try {
+                    userDoc = await getDocFromCache(userDocRef);
+                  } catch (cacheError) {
+                    console.log('[Auth] No cached data, using stored user');
+                    const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
+                    if (storedUser) {
+                      const parsedUser = JSON.parse(storedUser);
+                      setUser(parsedUser);
+                      setIsAuthenticated(true);
+                    }
+                    return;
+                  }
+                } else {
+                  throw firestoreError;
+                }
+              }
 
-              if (userDoc.exists()) {
+              if (userDoc && userDoc.exists()) {
                 const userData = userDoc.data() as User;
                 const appUser: User = {
                   ...userData,
@@ -86,6 +108,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
                 await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(appUser));
                 setUser(appUser);
                 setIsAuthenticated(true);
+              } else {
+                const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
+                if (storedUser) {
+                  const parsedUser = JSON.parse(storedUser);
+                  setUser(parsedUser);
+                  setIsAuthenticated(true);
+                }
               }
             } else {
               setUser(null);
@@ -93,6 +122,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
             }
           } catch (error) {
             console.error('[Auth] onAuthStateChanged error:', error);
+            const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
+            if (storedUser) {
+              console.log('[Auth] Using fallback cached user');
+              const parsedUser = JSON.parse(storedUser);
+              setUser(parsedUser);
+              setIsAuthenticated(true);
+            }
           } finally {
             setIsLoading(false);
           }

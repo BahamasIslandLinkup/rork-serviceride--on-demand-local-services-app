@@ -6,7 +6,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, getDocFromCache } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import type { 
   AdminUser, 
@@ -121,14 +121,28 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
           console.log('[Admin] Fetching admin data for user:', firebaseUser.uid);
           const adminDocRef = doc(db, 'admins', firebaseUser.uid);
           
-          const adminDoc = await getDoc(adminDocRef).catch((error) => {
-            console.error('[Admin] Error fetching admin document:', error);
-            if (error.code === 'unavailable') {
-              console.log('[Admin] Firestore unavailable, using cached data');
-              return null;
+          let adminDoc;
+          try {
+            adminDoc = await getDoc(adminDocRef);
+          } catch (firestoreError: any) {
+            if (firestoreError.code === 'unavailable') {
+              console.log('[Admin] Firestore unavailable, trying cache...');
+              try {
+                adminDoc = await getDocFromCache(adminDocRef);
+              } catch (cacheError) {
+                console.log('[Admin] No cached data, using stored admin');
+                const storedAdmin = await AsyncStorage.getItem(ADMIN_USER_STORAGE_KEY);
+                if (storedAdmin) {
+                  const parsedAdmin = JSON.parse(storedAdmin);
+                  setAdminUser(parsedAdmin);
+                  setIsAuthenticated(true);
+                }
+                return;
+              }
+            } else {
+              throw firestoreError;
             }
-            throw error;
-          });
+          }
 
           if (adminDoc && adminDoc.exists()) {
             const adminData = adminDoc.data();
@@ -151,10 +165,23 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
             setIsAuthenticated(true);
             console.log('[Admin] Admin data loaded successfully');
           } else {
-            console.log('[Admin] Using cached admin data due to unavailable Firestore');
+            const storedAdmin = await AsyncStorage.getItem(ADMIN_USER_STORAGE_KEY);
+            if (storedAdmin) {
+              console.log('[Admin] Using stored admin data');
+              const parsedAdmin = JSON.parse(storedAdmin);
+              setAdminUser(parsedAdmin);
+              setIsAuthenticated(true);
+            }
           }
         } catch (error) {
           console.error('[Admin] Failed to load admin data:', error);
+          const storedAdmin = await AsyncStorage.getItem(ADMIN_USER_STORAGE_KEY);
+          if (storedAdmin) {
+            console.log('[Admin] Using fallback cached admin');
+            const parsedAdmin = JSON.parse(storedAdmin);
+            setAdminUser(parsedAdmin);
+            setIsAuthenticated(true);
+          }
         }
       } else {
         setAdminUser(null);

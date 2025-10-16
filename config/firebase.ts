@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator, enableNetwork, disableNetwork } from 'firebase/firestore';
 import { initializeAuth, getAuth, Auth, connectAuthEmulator, browserLocalPersistence, indexedDBLocalPersistence } from 'firebase/auth';
 import { getStorage, FirebaseStorage, connectStorageEmulator } from 'firebase/storage';
 import { Platform, LogBox } from 'react-native';
@@ -45,6 +45,13 @@ try {
         firestoreDatabaseId
       )
     : getFirestore(app);
+
+  if (!isNewAppInstance) {
+    console.log('🔄 Re-enabling Firestore network...');
+    enableNetwork(db).catch(err => {
+      console.log('⚠️ Network enable skipped:', err.code);
+    });
+  }
   
   try {
     if (Platform.OS === 'web') {
