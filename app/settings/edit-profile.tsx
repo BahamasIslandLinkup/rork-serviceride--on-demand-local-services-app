@@ -15,15 +15,17 @@ import {
   Keyboard,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Camera, User, Phone, Mail, Briefcase, MapPin, Save } from 'lucide-react-native';
+import { Camera, User, Phone, Mail, Briefcase, MapPin, Save, Car } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useProvider } from '@/contexts/ProviderContext';
 import { StorageService } from '@/services/storage';
 
 export default function EditProfileScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { user, updateProfile } = useAuth();
+  const { setVehicleInfo } = useProvider();
   
   const [loading, setLoading] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -36,6 +38,14 @@ export default function EditProfileScreen() {
     serviceCategories: user?.serviceCategories || [],
     serviceRadius: user?.serviceRadius || 10,
     avatar: user?.avatar || '',
+  });
+  
+  const [vehicleData, setVehicleData] = useState({
+    make: user?.vehicleInfo?.make || '',
+    model: user?.vehicleInfo?.model || '',
+    year: user?.vehicleInfo?.year || new Date().getFullYear(),
+    color: user?.vehicleInfo?.color || '',
+    licensePlate: user?.vehicleInfo?.licensePlate || '',
   });
 
   const handlePickImage = async () => {
@@ -75,11 +85,22 @@ export default function EditProfileScreen() {
       return;
     }
 
+    if (isProvider) {
+      if (!vehicleData.make || !vehicleData.model || !vehicleData.color || !vehicleData.licensePlate) {
+        Alert.alert('Error', 'All vehicle information is required for providers');
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       console.log('[EditProfile] Updating profile:', formData);
       
       await updateProfile(formData);
+      
+      if (isProvider && setVehicleInfo) {
+        await setVehicleInfo(vehicleData);
+      }
       
       Alert.alert('Success', 'Profile updated successfully', [
         { text: 'OK', onPress: () => router.back() }
@@ -250,6 +271,94 @@ export default function EditProfileScreen() {
                   value={String(formData.serviceRadius)}
                   onChangeText={(text) => setFormData(prev => ({ ...prev, serviceRadius: parseInt(text) || 10 }))}
                   keyboardType="numeric"
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
+        {isProvider && (
+          <View style={[styles.section, { backgroundColor: colors.card }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Vehicle Information</Text>
+            
+            <View style={styles.inputGroup}>
+              <View style={[styles.inputIcon, { backgroundColor: colors.secondary + '15' }]}>
+                <Car size={20} color={colors.secondary} />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Make</Text>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="e.g., Toyota"
+                  placeholderTextColor={colors.textSecondary}
+                  value={vehicleData.make}
+                  onChangeText={(text) => setVehicleData(prev => ({ ...prev, make: text }))}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <View style={[styles.inputIcon, { backgroundColor: colors.secondary + '15' }]}>
+                <Car size={20} color={colors.secondary} />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Model</Text>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="e.g., Camry"
+                  placeholderTextColor={colors.textSecondary}
+                  value={vehicleData.model}
+                  onChangeText={(text) => setVehicleData(prev => ({ ...prev, model: text }))}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <View style={[styles.inputIcon, { backgroundColor: colors.secondary + '15' }]}>
+                <Car size={20} color={colors.secondary} />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Year</Text>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="2024"
+                  placeholderTextColor={colors.textSecondary}
+                  value={String(vehicleData.year)}
+                  onChangeText={(text) => setVehicleData(prev => ({ ...prev, year: parseInt(text) || new Date().getFullYear() }))}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <View style={[styles.inputIcon, { backgroundColor: colors.secondary + '15' }]}>
+                <Car size={20} color={colors.secondary} />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>Color</Text>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="e.g., Black"
+                  placeholderTextColor={colors.textSecondary}
+                  value={vehicleData.color}
+                  onChangeText={(text) => setVehicleData(prev => ({ ...prev, color: text }))}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <View style={[styles.inputIcon, { backgroundColor: colors.secondary + '15' }]}>
+                <Car size={20} color={colors.secondary} />
+              </View>
+              <View style={styles.inputWrapper}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>License Plate</Text>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="ABC-1234"
+                  placeholderTextColor={colors.textSecondary}
+                  value={vehicleData.licensePlate}
+                  onChangeText={(text) => setVehicleData(prev => ({ ...prev, licensePlate: text.toUpperCase() }))}
+                  autoCapitalize="characters"
                 />
               </View>
             </View>
