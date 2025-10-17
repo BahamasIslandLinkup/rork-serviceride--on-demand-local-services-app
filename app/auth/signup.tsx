@@ -111,7 +111,7 @@ export default function SignupScreen() {
       const result = await signup(email, password, name, phone, role);
       if (result.success) {
         if (role === 'provider') {
-          router.replace('/onboarding/verification' as any);
+          router.replace('/onboarding/vehicle' as any);
         } else {
           router.replace('/(tabs)');
         }

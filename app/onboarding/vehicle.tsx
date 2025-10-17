@@ -62,16 +62,7 @@ export default function VehicleInfoScreen() {
       const result = await setVehicleInfo(vehicleData);
       
       if (result.success) {
-        Alert.alert(
-          'Success',
-          'Vehicle information saved',
-          [
-            {
-              text: 'Continue',
-              onPress: () => router.push('/onboarding/kyc' as any),
-            },
-          ]
-        );
+        router.push('/onboarding/verification' as any);
       } else {
         Alert.alert('Error', result.error || 'Failed to save vehicle information');
       }

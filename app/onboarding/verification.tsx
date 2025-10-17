@@ -148,16 +148,7 @@ export default function VerificationScreen() {
         kycStatus: 'pending',
       });
 
-      Alert.alert(
-        'Submitted for Review',
-        "Your documents have been submitted. You will receive a notification once your account is verified. This usually takes 24-48 hours.",
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)'),
-          },
-        ]
-      );
+      router.push('/onboarding/profile' as any);
     } catch (error) {
       console.error('[Verification] Submit failed:', error);
       Alert.alert('Error', 'Failed to submit documents. Please try again.');
