@@ -140,10 +140,7 @@ export default function SignupScreen() {
       govId.idNumber &&
       govId.frontImageUri &&
       govId.backImageUri &&
-      govId.expiryDate &&
-      businessLic.licenseNumber &&
-      businessLic.businessName &&
-      businessLic.imageUri
+      govId.expiryDate
     );
   };
 
@@ -230,19 +227,20 @@ export default function SignupScreen() {
         status: 'pending',
       };
 
-      const businessLicense: BusinessLicense = {
+      const hasBusinessLicense = businessLic.licenseNumber && businessLic.businessName && businessLic.imageUri;
+      const businessLicense: BusinessLicense | undefined = hasBusinessLicense ? {
         licenseNumber: businessLic.licenseNumber!,
         businessName: businessLic.businessName!,
         imageUri: businessLic.imageUri!,
         expiryDate: businessLic.expiryDate,
         uploadedAt: new Date().toISOString(),
         status: 'pending',
-      };
+      } : undefined;
 
       console.log('[Signup] Provider data submitted:', {
         vehicleInfo,
         governmentId: { idNumber: governmentId.idNumber, status: 'pending' },
-        businessLicense: { businessName: businessLicense.businessName, status: 'pending' },
+        businessLicense: businessLicense ? { businessName: businessLicense.businessName, status: 'pending' } : 'Not provided',
       });
     } catch (error) {
       console.error('[Signup] Failed to prepare provider data:', error);
@@ -683,12 +681,12 @@ export default function SignupScreen() {
                 <View style={styles.providerSection}>
                   <View style={styles.sectionHeader}>
                     <Building2 size={24} color={colors.secondary} strokeWidth={2.5} />
-                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Business License</Text>
+                    <Text style={[styles.sectionTitle, { color: colors.text }]}>Business License (Optional)</Text>
                   </View>
-                  <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Required for business verification</Text>
+                  <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Earn a &quot;Verified Business&quot; badge when approved</Text>
 
                   <View style={styles.inputGroup}>
-                    <Text style={[styles.label, { color: colors.text }]}>License Number *</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>License Number</Text>
                     <View
                       style={[
                         styles.inputContainer,
@@ -707,7 +705,7 @@ export default function SignupScreen() {
                   </View>
 
                   <View style={styles.inputGroup}>
-                    <Text style={[styles.label, { color: colors.text }]}>Business Name *</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>Business Name</Text>
                     <View
                       style={[
                         styles.inputContainer,
@@ -745,7 +743,7 @@ export default function SignupScreen() {
                   </View>
 
                   <View style={styles.inputGroup}>
-                    <Text style={[styles.label, { color: colors.text }]}>License Document *</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>License Document</Text>
                     <TouchableOpacity
                       style={[styles.uploadBoxLarge, { backgroundColor: colors.card, borderColor: colors.border }]}
                       onPress={() => handleUploadImage('businessLic')}
