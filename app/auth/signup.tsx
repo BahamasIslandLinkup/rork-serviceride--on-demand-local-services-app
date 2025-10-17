@@ -110,7 +110,11 @@ export default function SignupScreen() {
     try {
       const result = await signup(email, password, name, phone, role);
       if (result.success) {
-        router.replace('/(tabs)');
+        if (role === 'provider') {
+          router.replace('/onboarding/verification' as any);
+        } else {
+          router.replace('/(tabs)');
+        }
       } else {
         setError(result.error || 'Signup failed. Please try again.');
       }

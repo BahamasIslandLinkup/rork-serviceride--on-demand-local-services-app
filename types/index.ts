@@ -35,6 +35,29 @@ export type VehicleInfo = {
   imageUri?: string;
 };
 
+export type GovernmentID = {
+  idNumber: string;
+  frontImageUri: string;
+  backImageUri: string;
+  expiryDate: string;
+  uploadedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+};
+
+export type BusinessLicense = {
+  licenseNumber: string;
+  businessName: string;
+  imageUri: string;
+  expiryDate?: string;
+  uploadedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+};
+
+export type VerificationBadge = {
+  type: 'verified_business' | 'approved_technician' | 'identity_verified';
+  awardedAt: string;
+};
+
 export type ProviderLocation = {
   latitude: number;
   longitude: number;
@@ -133,11 +156,20 @@ export type User = {
   verified: boolean;
   kycStatus?: 'pending' | 'approved' | 'rejected';
   vehicleInfo?: VehicleInfo;
+  governmentId?: GovernmentID;
+  businessLicense?: BusinessLicense;
+  verificationBadges?: VerificationBadge[];
+  verificationRejectionReason?: string;
   bio?: string;
   businessName?: string;
+  businessDescription?: string;
   serviceCategories?: string[];
   serviceRadius?: number;
+  isOnline?: boolean;
+  currentLocation?: ProviderLocation;
+  notificationSettings?: NotificationSettings;
   createdAt: string;
+  approvedAt?: string;
 };
 
 export type PaymentMethod = {
@@ -362,9 +394,14 @@ export type ProviderProfile = {
   id: string;
   userId: string;
   businessName?: string;
+  businessDescription?: string;
   bio?: string;
   kycStatus: 'pending' | 'approved' | 'rejected';
   kycDocuments: KYCDocument[];
+  governmentId?: GovernmentID;
+  businessLicense?: BusinessLicense;
+  verificationBadges?: VerificationBadge[];
+  verificationRejectionReason?: string;
   services: ServiceOffering[];
   availability: ProviderAvailability;
   coverageKm: number;
@@ -372,9 +409,11 @@ export type ProviderProfile = {
   vehicleInfo?: VehicleInfo;
   isOnline: boolean;
   isBusy: boolean;
+  currentLocation?: ProviderLocation;
   metrics: ProviderMetrics;
   createdAt: string;
   updatedAt: string;
+  approvedAt?: string;
 };
 
 export type EarningsSummary = {
