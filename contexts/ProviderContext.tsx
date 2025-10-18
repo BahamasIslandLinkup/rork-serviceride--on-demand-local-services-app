@@ -81,14 +81,21 @@ export const [ProviderContextProvider, useProvider] = createContextHook(() => {
         const newProfile: ProviderProfile = {
           id: user.id,
           userId: user.id,
+          businessName: user.businessName ?? undefined,
+          businessDescription: user.businessDescription ?? undefined,
+          bio: user.bio ?? undefined,
           kycStatus: 'pending',
           kycDocuments: [],
+          governmentId: user.governmentId ?? undefined,
+          businessLicense: user.businessLicense ?? undefined,
+          verificationBadges: user.verificationBadges ?? undefined,
           services: [],
           availability: {
             slots: [],
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           },
           coverageKm: 10,
+          vehicleInfo: user.vehicleInfo ?? undefined,
           isOnline: false,
           isBusy: false,
           metrics: {

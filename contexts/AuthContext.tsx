@@ -12,7 +12,9 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, getDocFromCache } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
-import type { User } from '@/types';
+import type { User, VehicleInfo, GovernmentID, BusinessLicense, ProviderProfile, ProviderSignupPayload } from '@/types';
+import { createProviderProfile } from '@/services/firestore/provider';
+import { StorageService } from '@/services/storage';
 
 const AUTH_STORAGE_KEY = 'app_auth';
 const USER_STORAGE_KEY = 'app_user';
@@ -56,6 +58,43 @@ const secureStorage = {
       await AsyncStorage.removeItem(key);
     }
   },
+};
+
+const retryAsync = async <T>(
+  operation: () => Promise<T>,
+  {
+    retries = 2,
+    baseDelayMs = 750,
+    shouldRetry,
+  }: {
+    retries?: number;
+    baseDelayMs?: number;
+    shouldRetry?: (error: any) => boolean;
+  } = {}
+): Promise<T> => {
+  let attempt = 0;
+  let lastError: any;
+
+  const predicate =
+    shouldRetry ||
+    ((error: any) => error?.code === 'auth/network-request-failed' || error?.code === 'unavailable');
+
+  while (attempt <= retries) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      if (!predicate(error) || attempt === retries) {
+        break;
+      }
+
+      const delay = baseDelayMs * Math.pow(2, attempt);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      attempt += 1;
+    }
+  }
+
+  throw lastError;
 };
 
 export const [AuthProvider, useAuth] = createContextHook(() => {
@@ -177,7 +216,9 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const login = useCallback(async (email: string, password: string, rememberMe: boolean = false) => {
     try {
       console.log('[Auth] Login attempt for:', email, 'Remember me:', rememberMe);
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await retryAsync(
+        () => signInWithEmailAndPassword(auth, email, password)
+      );
       const firebaseUser = userCredential.user;
       const authToken = await firebaseUser.getIdToken();
 
@@ -231,13 +272,20 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     password: string,
     name: string,
     phone: string,
-    role: 'customer' | 'provider'
+    role: 'customer' | 'provider',
+    providerData?: ProviderSignupPayload
   ) => {
+    let firebaseUser: FirebaseUser | null = null;
+
     try {
       console.log('[Auth] Signup attempt for:', email);
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
+      const userCredential = await retryAsync(
+        () => createUserWithEmailAndPassword(auth, email, password),
+        { retries: 3, baseDelayMs: 1000 }
+      );
+      firebaseUser = userCredential.user;
       const authToken = await firebaseUser.getIdToken();
+      const timestamp = new Date().toISOString();
 
       const appUser: User = {
         id: firebaseUser.uid,
@@ -246,24 +294,142 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         phone,
         role,
         verified: false,
-        ...(role === 'provider' && { kycStatus: 'pending' as const }),
-        createdAt: new Date().toISOString(),
+        createdAt: timestamp,
       };
 
-      const firestoreData: any = {
+      const firestoreData: Record<string, any> = {
         email,
         name,
         phone,
         role,
         verified: false,
-        createdAt: new Date().toISOString(),
+        createdAt: timestamp,
       };
 
+      let providerProfileData: ProviderProfile | null = null;
+
       if (role === 'provider') {
+        if (!providerData) {
+          throw new Error('Provider data is required for provider signup');
+        }
+
+        const {
+          vehicleInfo,
+          governmentId: providerGovernmentId,
+          businessLicense: providerBusinessLicense,
+          businessName,
+          uploadSources,
+        } = providerData;
+
+        if (!uploadSources.governmentIdFront.uri || !uploadSources.governmentIdBack.uri || !uploadSources.businessLicense.uri) {
+          throw new Error('Provider documents are required for signup');
+        }
+
+        const verificationBasePath = `verification/${firebaseUser.uid}`;
+        const uploadTimestamp = Date.now();
+
+        const [governmentIdFrontUpload, governmentIdBackUpload, businessLicenseUpload] = await Promise.all([
+          StorageService.uploadImage(
+            uploadSources.governmentIdFront.uri,
+            `${verificationBasePath}/governmentId`,
+            `front_${uploadTimestamp}.jpg`,
+            uploadSources.governmentIdFront.mimeType
+          ),
+          StorageService.uploadImage(
+            uploadSources.governmentIdBack.uri,
+            `${verificationBasePath}/governmentId`,
+            `back_${uploadTimestamp}.jpg`,
+            uploadSources.governmentIdBack.mimeType
+          ),
+          StorageService.uploadImage(
+            uploadSources.businessLicense.uri,
+            `${verificationBasePath}/businessLicense`,
+            `license_${uploadTimestamp}.jpg`,
+            uploadSources.businessLicense.mimeType
+          ),
+        ]);
+
+        const governmentId: GovernmentID = {
+          ...providerGovernmentId,
+          frontImageUri: governmentIdFrontUpload.url,
+          backImageUri: governmentIdBackUpload.url,
+          uploadedAt: timestamp,
+          status: 'pending',
+        };
+
+        const businessLicense: BusinessLicense = {
+          ...providerBusinessLicense,
+          imageUri: businessLicenseUpload.url,
+          uploadedAt: timestamp,
+          status: 'pending',
+        };
+
+        const resolvedBusinessName = (businessName || businessLicense.businessName || '').trim();
+
+        appUser.vehicleInfo = vehicleInfo;
+        appUser.governmentId = governmentId;
+        appUser.businessLicense = businessLicense;
+        appUser.kycStatus = 'pending';
+        if (resolvedBusinessName.length > 0) {
+          appUser.businessName = resolvedBusinessName;
+        }
+
         firestoreData.kycStatus = 'pending';
+        firestoreData.vehicleInfo = vehicleInfo;
+        firestoreData.governmentId = governmentId;
+        firestoreData.businessLicense = businessLicense;
+        if (resolvedBusinessName.length > 0) {
+          firestoreData.businessName = resolvedBusinessName;
+        }
+
+        const timezone = (() => {
+          try {
+            return Intl.DateTimeFormat().resolvedOptions().timeZone;
+          } catch {
+            return 'UTC';
+          }
+        })();
+
+        providerProfileData = {
+          id: firebaseUser.uid,
+          userId: firebaseUser.uid,
+          kycStatus: 'pending',
+          kycDocuments: [],
+          governmentId,
+          businessLicense,
+          services: [],
+          availability: {
+            slots: [],
+            timezone,
+          },
+          coverageKm: 10,
+          vehicleInfo,
+          isOnline: false,
+          isBusy: false,
+          metrics: {
+            totalJobs: 0,
+            completedJobs: 0,
+            cancelledJobs: 0,
+            averageRating: 0,
+            totalReviews: 0,
+            responseTimeMinutes: 0,
+            completionRate: 0,
+            onTimeRate: 0,
+          },
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          ...(resolvedBusinessName.length > 0 ? { businessName: resolvedBusinessName } : {}),
+        };
       }
 
       await setDoc(doc(db, 'users', firebaseUser.uid), firestoreData);
+      if (providerProfileData) {
+        try {
+          await createProviderProfile(firebaseUser.uid, providerProfileData);
+        } catch (providerProfileError) {
+          console.error('[Auth] Failed to initialize provider profile:', providerProfileError);
+        }
+      }
       await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(appUser));
       await secureStorage.setItem(AUTH_STORAGE_KEY, authToken);
 
@@ -274,6 +440,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       return { success: true, user: appUser };
     } catch (error: any) {
       console.error('[Auth] Signup failed:', error);
+      if (firebaseUser) {
+        try {
+          await firebaseUser.delete();
+        } catch (cleanupError) {
+          console.error('[Auth] Failed to rollback user after signup error:', cleanupError);
+        }
+      }
       let errorMessage = 'Signup failed';
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Email already in use';
@@ -281,6 +454,10 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         errorMessage = 'Password is too weak';
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = 'Invalid email address';
+      } else if (error.message === 'Provider documents are required for signup') {
+        errorMessage = 'Please add your verification documents before signing up.';
+      } else if (typeof error.message === 'string' && error.message.toLowerCase().includes('upload')) {
+        errorMessage = 'Failed to upload verification documents. Please try again.';
       }
       return { success: false, error: errorMessage };
     }

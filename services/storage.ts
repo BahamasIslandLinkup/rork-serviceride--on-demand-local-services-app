@@ -2,6 +2,57 @@ import { ref, uploadBytes, getDownloadURL, deleteObject, listAll } from 'firebas
 import { storage } from '@/config/firebase';
 import * as ImagePicker from 'expo-image-picker';
 
+const getFileExtension = (uri: string): string | null => {
+  const cleanUri = uri.split('?')[0];
+  const match = cleanUri.match(/\.([a-zA-Z0-9]+)$/);
+  return match ? match[1].toLowerCase() : null;
+};
+
+const inferImageContentType = (uri: string): string => {
+  const extension = getFileExtension(uri);
+  switch (extension) {
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    case 'heic':
+      return 'image/heic';
+    case 'heif':
+      return 'image/heif';
+    case 'bmp':
+      return 'image/bmp';
+    case 'jpg':
+    case 'jpeg':
+    default:
+      return 'image/jpeg';
+  }
+};
+
+const inferVideoContentType = (uri: string): string => {
+  const extension = getFileExtension(uri);
+  switch (extension) {
+    case 'mov':
+      return 'video/quicktime';
+    case 'm4v':
+      return 'video/x-m4v';
+    case 'avi':
+      return 'video/x-msvideo';
+    case 'mkv':
+      return 'video/x-matroska';
+    case 'webm':
+      return 'video/webm';
+    case 'mp4':
+    default:
+      return 'video/mp4';
+  }
+};
+
+const resolveContentType = (explicit?: string | null, fallback?: string): string | undefined => {
+  return explicit && explicit.trim().length > 0 ? explicit : fallback;
+};
+
 export interface UploadResult {
   url: string;
   path: string;
@@ -24,10 +75,15 @@ export const StorageService = {
       const name = fileName || `image_${Date.now()}.jpg`;
       const storageRef = ref(storage, `${path}/${name}`);
 
+      const resolvedContentType = resolveContentType(contentType, blob.type || inferImageContentType(uri));
+      const finalContentType = resolvedContentType && resolvedContentType.startsWith('image/')
+        ? resolvedContentType
+        : inferImageContentType(uri);
+
       const snapshot = await uploadBytes(
         storageRef,
         blob,
-        contentType ? { contentType } : undefined
+        { contentType: finalContentType }
       );
       const downloadURL = await getDownloadURL(snapshot.ref);
 
@@ -58,8 +114,13 @@ export const StorageService = {
       const name = fileName || `video_${Date.now()}.mp4`;
       const storageRef = ref(storage, `${path}/${name}`);
 
+      const resolvedContentType = resolveContentType(blob.type, inferVideoContentType(uri));
+      const finalContentType = resolvedContentType && resolvedContentType.startsWith('video/')
+        ? resolvedContentType
+        : inferVideoContentType(uri);
+
       const snapshot = await uploadBytes(storageRef, blob, {
-        contentType: 'video/mp4',
+        contentType: finalContentType,
       });
       const downloadURL = await getDownloadURL(snapshot.ref);
 
@@ -90,9 +151,9 @@ export const StorageService = {
 
       const storageRef = ref(storage, `${path}/${fileName}`);
 
-      const snapshot = await uploadBytes(storageRef, blob, {
-        contentType: contentType || blob.type,
-      });
+      const resolvedContentType = resolveContentType(contentType, blob.type || undefined);
+
+      const snapshot = await uploadBytes(storageRef, blob, resolvedContentType ? { contentType: resolvedContentType } : undefined);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
       console.log('✅ File uploaded successfully:', downloadURL);

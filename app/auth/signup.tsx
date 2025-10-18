@@ -18,8 +18,8 @@ import { Mail, Lock, User, Phone, Eye, EyeOff, Briefcase, ShoppingBag, Upload, C
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StorageService } from '@/services/storage';
-import type { VehicleInfo, GovernmentID, BusinessLicense } from '@/types';
+import * as ImagePicker from 'expo-image-picker';
+import type { VehicleInfo, GovernmentID, BusinessLicense, ProviderSignupPayload } from '@/types';
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -47,14 +47,19 @@ export default function SignupScreen() {
     licensePlate: '',
   });
   
-  const [govId, setGovId] = useState<Partial<GovernmentID>>({
+  const [govId, setGovId] = useState<Partial<GovernmentID> & {
+    frontImageMimeType?: string;
+    backImageMimeType?: string;
+  }>({
     idNumber: '',
     frontImageUri: '',
     backImageUri: '',
     expiryDate: '',
   });
-  
-  const [businessLic, setBusinessLic] = useState<Partial<BusinessLicense>>({
+
+  const [businessLic, setBusinessLic] = useState<Partial<BusinessLicense> & {
+    imageMimeType?: string;
+  }>({
     licenseNumber: '',
     businessName: '',
     imageUri: '',
@@ -140,37 +145,51 @@ export default function SignupScreen() {
       govId.idNumber &&
       govId.frontImageUri &&
       govId.backImageUri &&
-      govId.expiryDate
+      govId.expiryDate &&
+      businessLic.licenseNumber?.trim() &&
+      businessLic.businessName?.trim() &&
+      businessLic.imageUri
     );
   };
 
   const handleUploadImage = async (field: 'govIdFront' | 'govIdBack' | 'businessLic') => {
     try {
       setUploadingField(field);
-      const result = await StorageService.pickAndUploadImage(
-        `verification/temp_${Date.now()}/${field}`,
-        {
-          allowsEditing: true,
-          aspect: [4, 3],
-          quality: 0.9,
+      if (Platform.OS !== 'web') {
+        const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (!permissionResult.granted) {
+          Alert.alert('Permission required', 'Please allow access to your photo library to upload documents.');
+          setUploadingField(null);
+          return;
         }
-      );
+      }
 
-      if (!result) {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.9,
+      });
+
+      if (result.canceled || !result.assets || !result.assets[0]?.uri) {
         setUploadingField(null);
         return;
       }
 
+      const asset = result.assets[0];
+      const uri = asset.uri;
+      const mimeType = asset.mimeType || 'image/jpeg';
+
       if (field === 'govIdFront') {
-        setGovId(prev => ({ ...prev, frontImageUri: result.url }));
+        setGovId(prev => ({ ...prev, frontImageUri: uri, frontImageMimeType: mimeType }));
       } else if (field === 'govIdBack') {
-        setGovId(prev => ({ ...prev, backImageUri: result.url }));
+        setGovId(prev => ({ ...prev, backImageUri: uri, backImageMimeType: mimeType }));
       } else if (field === 'businessLic') {
-        setBusinessLic(prev => ({ ...prev, imageUri: result.url }));
+        setBusinessLic(prev => ({ ...prev, imageUri: uri, imageMimeType: mimeType }));
       }
     } catch (error) {
-      console.error('[Signup] Upload failed:', error);
-      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      console.error('[Signup] Image selection failed:', error);
+      Alert.alert('Error', 'Failed to select image. Please try again.');
     } finally {
       setUploadingField(null);
     }
@@ -188,10 +207,23 @@ export default function SignupScreen() {
     setError('');
 
     try {
-      const result = await signup(email, password, name, phone, role);
+      const providerSignupData = role === 'provider' ? buildProviderSignupData() : undefined;
+
+      if (role === 'provider' && !providerSignupData) {
+        throw new Error('Provider data could not be prepared');
+      }
+
+      const result = await signup(
+        email,
+        password,
+        name,
+        phone,
+        role,
+        providerSignupData
+      );
+
       if (result.success) {
         if (role === 'provider') {
-          await updateUserProfileWithProviderData();
           Alert.alert(
             'Application Submitted',
             'Your provider application has been submitted for review. You will be notified once approved.',
@@ -216,36 +248,72 @@ export default function SignupScreen() {
     }
   };
 
-  const updateUserProfileWithProviderData = async () => {
-    try {
-      const governmentId: GovernmentID = {
-        idNumber: govId.idNumber!,
-        frontImageUri: govId.frontImageUri!,
-        backImageUri: govId.backImageUri!,
-        expiryDate: govId.expiryDate!,
-        uploadedAt: new Date().toISOString(),
-        status: 'pending',
-      };
-
-      const hasBusinessLicense = businessLic.licenseNumber && businessLic.businessName && businessLic.imageUri;
-      const businessLicense: BusinessLicense | undefined = hasBusinessLicense ? {
-        licenseNumber: businessLic.licenseNumber!,
-        businessName: businessLic.businessName!,
-        imageUri: businessLic.imageUri!,
-        expiryDate: businessLic.expiryDate,
-        uploadedAt: new Date().toISOString(),
-        status: 'pending',
-      } : undefined;
-
-      console.log('[Signup] Provider data submitted:', {
-        vehicleInfo,
-        governmentId: { idNumber: governmentId.idNumber, status: 'pending' },
-        businessLicense: businessLicense ? { businessName: businessLicense.businessName, status: 'pending' } : 'Not provided',
-      });
-    } catch (error) {
-      console.error('[Signup] Failed to prepare provider data:', error);
-      throw error;
+  const buildProviderSignupData = (): ProviderSignupPayload | undefined => {
+    if (role !== 'provider') {
+      return undefined;
     }
+
+    const vehicleData: VehicleInfo = {
+      ...vehicleInfo,
+      make: vehicleInfo.make.trim(),
+      model: vehicleInfo.model.trim(),
+      color: vehicleInfo.color.trim(),
+      licensePlate: vehicleInfo.licensePlate.trim(),
+    };
+
+    if (!govId.frontImageUri || !govId.backImageUri) {
+      throw new Error('Government ID images are required');
+    }
+    if (!businessLic.imageUri) {
+      throw new Error('Business license document is required');
+    }
+
+    const governmentId: GovernmentID = {
+      idNumber: govId.idNumber!.trim(),
+      frontImageUri: govId.frontImageUri!,
+      backImageUri: govId.backImageUri!,
+      expiryDate: govId.expiryDate!.trim(),
+      uploadedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    const businessLicense: BusinessLicense = {
+      licenseNumber: businessLic.licenseNumber!.trim(),
+      businessName: businessLic.businessName!.trim(),
+      imageUri: businessLic.imageUri!,
+      expiryDate: businessLic.expiryDate?.trim() || undefined,
+      uploadedAt: new Date().toISOString(),
+      status: 'pending',
+    };
+
+    console.log('[Signup] Provider data prepared:', {
+      vehicleInfo: vehicleData,
+      governmentId: { idNumber: governmentId.idNumber, status: governmentId.status },
+      businessLicense: { businessName: businessLicense.businessName, status: businessLicense.status },
+    });
+
+    const businessName = businessLicense.businessName;
+
+    return {
+      vehicleInfo: vehicleData,
+      governmentId,
+      businessLicense,
+      businessName,
+      uploadSources: {
+        governmentIdFront: {
+          uri: govId.frontImageUri!,
+          mimeType: govId.frontImageMimeType || 'image/jpeg',
+        },
+        governmentIdBack: {
+          uri: govId.backImageUri!,
+          mimeType: govId.backImageMimeType || 'image/jpeg',
+        },
+        businessLicense: {
+          uri: businessLicense.imageUri,
+          mimeType: businessLic.imageMimeType || 'image/jpeg',
+        },
+      },
+    };
   };
 
   return (

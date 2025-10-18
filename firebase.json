@@ -1,8 +1,11 @@
 {
   "firestore": {
-    "database": "ondemandservice",
+    "database": "(default)",
     "location": "nam7",
-    "rules": "y",
+    "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

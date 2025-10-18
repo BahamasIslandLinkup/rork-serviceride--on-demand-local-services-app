@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, initializeFirestore, Firestore, connectFirestoreEmulator, setLogLevel } from 'firebase/firestore';
 import {
   initializeAuth,
   getAuth,
@@ -28,9 +28,12 @@ const useEmulators = isDevelopment && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULA
 const firestoreDatabaseId =
   process.env.EXPO_PUBLIC_FIREBASE_DATABASE_ID ||
   process.env.EXPO_PUBLIC_FIRESTORE_DATABASE_ID ||
-  'ondemandservice';
+  '(default)';
 
 LogBox.ignoreLogs(['@firebase/auth']);
+
+// Reduce noisy Firestore network warnings when long polling retries internally
+setLogLevel('error');
 
 let app: FirebaseApp;
 let db: Firestore;
@@ -47,13 +50,15 @@ try {
   const isNewAppInstance = getApps().length === 0;
   app = isNewAppInstance ? initializeApp(firebaseConfig) : getApp();
   
+  const firestoreSettings = {
+    experimentalForceLongPolling: true,
+    useFetchStreams: false,
+  } as const;
+
   db = isNewAppInstance
     ? initializeFirestore(
         app,
-        {
-          experimentalAutoDetectLongPolling: true,
-          useFetchStreams: false,
-        },
+        firestoreSettings,
         firestoreDatabaseId === '(default)' ? undefined : firestoreDatabaseId
       )
     : getFirestore(app, firestoreDatabaseId === '(default)' ? undefined : firestoreDatabaseId);

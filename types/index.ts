@@ -172,6 +172,23 @@ export type User = {
   approvedAt?: string;
 };
 
+export type ProviderDocumentUploadSource = {
+  uri: string;
+  mimeType?: string;
+};
+
+export type ProviderSignupPayload = {
+  vehicleInfo: VehicleInfo;
+  governmentId: GovernmentID;
+  businessLicense: BusinessLicense;
+  businessName?: string;
+  uploadSources: {
+    governmentIdFront: ProviderDocumentUploadSource;
+    governmentIdBack: ProviderDocumentUploadSource;
+    businessLicense: ProviderDocumentUploadSource;
+  };
+};
+
 export type PaymentMethod = {
   id: string;
   type: 'card' | 'apple_pay' | 'google_pay';

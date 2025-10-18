@@ -2,83 +2,63 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    function isAuthenticated() {
+
+    function isSignedIn() {
       return request.auth != null;
     }
-    
+
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
-    
-    function isValidImageSize() {
-      return request.resource.size < 10 * 1024 * 1024;
+
+    function isAdmin() {
+      return isSignedIn() &&
+        firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
     }
-    
-    function isValidVideoSize() {
-      return request.resource.size < 100 * 1024 * 1024;
+
+    function allowImageUpload() {
+      return request.resource != null &&
+        request.resource.contentType.matches('image/.*') &&
+        request.resource.size < 10 * 1024 * 1024;
     }
-    
-    function isValidFileSize() {
-      return request.resource.size < 20 * 1024 * 1024;
+
+    function allowVideoUpload() {
+      return request.resource != null &&
+        request.resource.contentType.matches('video/.*') &&
+        request.resource.size < 100 * 1024 * 1024;
     }
-    
-    function isImage() {
-      return request.resource.contentType.matches('image/.*');
-    }
-    
-    function isVideo() {
-      return request.resource.contentType.matches('video/.*');
-    }
-    
-    function isDocument() {
-      return request.resource.contentType.matches('application/pdf') ||
-             request.resource.contentType.matches('application/msword') ||
-             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*');
-    }
-    
-    match /messages/{userId}/{fileName} {
-      allow read: if isAuthenticated();
-      
-      allow write: if isOwner(userId) && (
-        (isImage() && isValidImageSize()) ||
-        (isVideo() && isValidVideoSize()) ||
-        (isDocument() && isValidFileSize())
-      );
-      
-      allow delete: if isOwner(userId);
-    }
-    
-    match /disputes/{disputeId}/{userId}/{fileName} {
-      allow read: if isAuthenticated();
-      
-      allow write: if isOwner(userId) && (
-        (isImage() && isValidImageSize()) ||
-        (isVideo() && isValidVideoSize()) ||
-        (isDocument() && isValidFileSize())
-      );
-      
-      allow delete: if isOwner(userId);
-    }
-    
+
     match /profiles/{userId}/{fileName} {
       allow read: if true;
-      
-      allow write: if isOwner(userId) && 
-        isImage() && 
-        isValidImageSize();
-      
-      allow delete: if isOwner(userId);
+      allow write, delete: if isOwner(userId) && allowImageUpload();
     }
-    
+
+    match /messages/{userId}/{fileName} {
+      allow read: if isSignedIn() && (isOwner(userId) || isAdmin());
+      allow write: if isOwner(userId) && (allowImageUpload() || allowVideoUpload());
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
     match /services/{providerId}/{fileName} {
       allow read: if true;
-      
-      allow write: if isOwner(providerId) && 
-        isImage() && 
-        isValidImageSize();
-      
-      allow delete: if isOwner(providerId);
+      allow write: if isOwner(providerId) && allowImageUpload();
+      allow delete: if isOwner(providerId) || isAdmin();
+    }
+
+    match /verification/{userId}/{allPaths=**} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId) && allowImageUpload();
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /disputes/{disputeId}/{userId}/{fileName} {
+      allow read: if isSignedIn();
+      allow write: if isOwner(userId) && (allowImageUpload() || allowVideoUpload());
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
     }
   }
 }
