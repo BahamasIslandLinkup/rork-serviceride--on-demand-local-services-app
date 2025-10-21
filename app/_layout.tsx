@@ -32,9 +32,10 @@ function RootLayoutNav() {
     }
 
     const inAuthGroup = segments[0] === 'auth';
-    console.log('[Navigation] Auth state:', { isAuthenticated, inAuthGroup, segments });
+    const isAdminRoute = segments[0] === 'admin';
+    console.log('[Navigation] Auth state:', { isAuthenticated, inAuthGroup, isAdminRoute, segments });
 
-    if (!isAuthenticated && !inAuthGroup) {
+    if (!isAuthenticated && !inAuthGroup && !isAdminRoute) {
       console.log('[Navigation] Redirecting to login - user not authenticated');
       router.replace('/auth/login');
     } else if (isAuthenticated && inAuthGroup) {

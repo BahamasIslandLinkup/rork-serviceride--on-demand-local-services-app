@@ -6,6 +6,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from 'firebase/auth';
+import type { FirebaseError } from 'firebase/app';
 import { doc, getDoc, getDocFromCache } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import type { 
@@ -122,10 +123,15 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
           const adminDocRef = doc(db, 'admins', firebaseUser.uid);
           
           let adminDoc;
+          let permissionDenied = false;
           try {
             adminDoc = await getDoc(adminDocRef);
           } catch (firestoreError: any) {
-            if (firestoreError.code === 'unavailable') {
+            const error = firestoreError as FirebaseError;
+            if (error.code === 'permission-denied') {
+              console.log('[Admin] User is not an admin - skipping admin data load');
+              permissionDenied = true;
+            } else if (error.code === 'unavailable') {
               console.log('[Admin] Firestore unavailable, trying cache...');
               try {
                 adminDoc = await getDocFromCache(adminDocRef);
@@ -140,7 +146,7 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
                 return;
               }
             } else {
-              throw firestoreError;
+              throw error;
             }
           }
 
@@ -164,7 +170,7 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
             setAdminUser(admin);
             setIsAuthenticated(true);
             console.log('[Admin] Admin data loaded successfully');
-          } else {
+          } else if (!permissionDenied) {
             const storedAdmin = await AsyncStorage.getItem(ADMIN_USER_STORAGE_KEY);
             if (storedAdmin) {
               console.log('[Admin] Using stored admin data');
@@ -172,15 +178,27 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
               setAdminUser(parsedAdmin);
               setIsAuthenticated(true);
             }
+          } else {
+            setAdminUser(null);
+            setIsAuthenticated(false);
           }
         } catch (error) {
-          console.error('[Admin] Failed to load admin data:', error);
-          const storedAdmin = await AsyncStorage.getItem(ADMIN_USER_STORAGE_KEY);
-          if (storedAdmin) {
-            console.log('[Admin] Using fallback cached admin');
-            const parsedAdmin = JSON.parse(storedAdmin);
-            setAdminUser(parsedAdmin);
-            setIsAuthenticated(true);
+          const firebaseError = error as FirebaseError;
+          const permissionDenied = firebaseError.code === 'permission-denied';
+
+          if (permissionDenied) {
+            console.log('[Admin] Admin data access denied, treating user as non-admin');
+            setAdminUser(null);
+            setIsAuthenticated(false);
+          } else {
+            console.error('[Admin] Failed to load admin data:', error);
+            const storedAdmin = await AsyncStorage.getItem(ADMIN_USER_STORAGE_KEY);
+            if (storedAdmin) {
+              console.log('[Admin] Using fallback cached admin');
+              const parsedAdmin = JSON.parse(storedAdmin);
+              setAdminUser(parsedAdmin);
+              setIsAuthenticated(true);
+            }
           }
         }
       } else {
@@ -220,7 +238,17 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
       
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      const adminDoc = await getDoc(adminDocRef);
+      let adminDoc;
+      try {
+        adminDoc = await getDoc(adminDocRef);
+      } catch (firestoreError: any) {
+        const error = firestoreError as FirebaseError;
+        if (error.code === 'permission-denied') {
+          await firebaseSignOut(auth);
+          return { success: false, error: 'Admin access required' };
+        }
+        throw error;
+      }
 
       if (!adminDoc.exists()) {
         await firebaseSignOut(auth);
@@ -268,7 +296,9 @@ export const [AdminProvider, useAdmin] = createContextHook(() => {
   const logout = useCallback(async () => {
     try {
       console.log('[Admin] Logging out...');
-      await firebaseSignOut(auth);
+      if (auth.currentUser) {
+        await firebaseSignOut(auth);
+      }
       await AsyncStorage.removeItem(ADMIN_USER_STORAGE_KEY);
       await AsyncStorage.removeItem(ADMIN_STORAGE_KEY);
 

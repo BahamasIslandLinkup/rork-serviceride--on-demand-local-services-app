@@ -98,13 +98,16 @@ export default function LoginScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
-      
+
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardView}
       >
         <ScrollView
-          contentContainerStyle={[styles.scrollContent, { paddingTop: 60 + insets.top }]}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: 60 + insets.top }
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -117,7 +120,9 @@ export default function LoginScreen() {
             >
               <Text style={styles.logoText}>S</Text>
             </LinearGradient>
-            <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+            <Text style={[styles.title, { color: colors.text }]}>
+              Welcome Back
+            </Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Sign in to continue
             </Text>
@@ -125,8 +130,15 @@ export default function LoginScreen() {
 
           <View style={styles.form}>
             {error ? (
-              <View style={[styles.errorContainer, { backgroundColor: `${colors.error}15` }]}>
-                <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+              <View
+                style={[
+                  styles.errorContainer,
+                  { backgroundColor: `${colors.error}15` }
+                ]}
+              >
+                <Text style={[styles.errorText, { color: colors.error }]}>
+                  {error}
+                </Text>
               </View>
             ) : null}
 
@@ -135,10 +147,17 @@ export default function LoginScreen() {
               <View
                 style={[
                   styles.inputContainer,
-                  { backgroundColor: colors.card, borderColor: emailError ? colors.error : colors.border },
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: emailError ? colors.error : colors.border
+                  }
                 ]}
               >
-                <Mail size={20} color={colors.textLight} style={styles.inputIcon} />
+                <Mail
+                  size={20}
+                  color={colors.textLight}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Enter your email"
@@ -152,19 +171,30 @@ export default function LoginScreen() {
                 />
               </View>
               {emailError ? (
-                <Text style={[styles.fieldError, { color: colors.error }]}>{emailError}</Text>
+                <Text style={[styles.fieldError, { color: colors.error }]}>
+                  {emailError}
+                </Text>
               ) : null}
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: colors.text }]}>Password</Text>
+              <Text style={[styles.label, { color: colors.text }]}>
+                Password
+              </Text>
               <View
                 style={[
                   styles.inputContainer,
-                  { backgroundColor: colors.card, borderColor: passwordError ? colors.error : colors.border },
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: passwordError ? colors.error : colors.border
+                  }
                 ]}
               >
-                <Lock size={20} color={colors.textLight} style={styles.inputIcon} />
+                <Lock
+                  size={20}
+                  color={colors.textLight}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={[styles.input, { color: colors.text }]}
                   placeholder="Enter your password"
@@ -189,7 +219,9 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
               {passwordError ? (
-                <Text style={[styles.fieldError, { color: colors.error }]}>{passwordError}</Text>
+                <Text style={[styles.fieldError, { color: colors.error }]}>
+                  {passwordError}
+                </Text>
               ) : null}
             </View>
 
@@ -201,7 +233,11 @@ export default function LoginScreen() {
                 activeOpacity={0.7}
               >
                 {rememberMe ? (
-                  <CheckSquare size={20} color={colors.primary} strokeWidth={2.5} />
+                  <CheckSquare
+                    size={20}
+                    color={colors.primary}
+                    strokeWidth={2.5}
+                  />
                 ) : (
                   <Square size={20} color={colors.textLight} strokeWidth={2} />
                 )}
@@ -212,9 +248,11 @@ export default function LoginScreen() {
 
               <TouchableOpacity
                 disabled={loading}
-                onPress={() => router.push('/auth/reset-password')}
+                onPress={() => router.push("/auth/reset-password")}
               >
-                <Text style={[styles.forgotPassword, { color: colors.primary }]}>
+                <Text
+                  style={[styles.forgotPassword, { color: colors.primary }]}
+                >
                   Forgot Password?
                 </Text>
               </TouchableOpacity>
@@ -223,7 +261,7 @@ export default function LoginScreen() {
             <TouchableOpacity
               style={[
                 styles.loginButton,
-                { opacity: isFormValid() && !loading ? 1 : 0.5 },
+                { opacity: isFormValid() && !loading ? 1 : 0.5 }
               ]}
               onPress={handleLogin}
               disabled={!isFormValid() || loading}
@@ -243,21 +281,51 @@ export default function LoginScreen() {
               </LinearGradient>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[
+                styles.adminButton,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  opacity: loading ? 0.6 : 1
+                }
+              ]}
+              onPress={() => router.push('/admin/login')}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.adminButtonText, { color: colors.primary }]}>
+                Admin Portal
+              </Text>
+            </TouchableOpacity>
+
             <View style={styles.divider}>
-              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-              <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
-              <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+              <View
+                style={[styles.dividerLine, { backgroundColor: colors.border }]}
+              />
+              <Text
+                style={[styles.dividerText, { color: colors.textSecondary }]}
+              >
+                OR
+              </Text>
+              <View
+                style={[styles.dividerLine, { backgroundColor: colors.border }]}
+              />
             </View>
 
             <View style={styles.signupContainer}>
-              <Text style={[styles.signupText, { color: colors.textSecondary }]}>
-                Don&apos;t have an account?{' '}
+              <Text
+                style={[styles.signupText, { color: colors.textSecondary }]}
+              >
+                Don&apos;t have an account?{" "}
               </Text>
               <TouchableOpacity
                 disabled={loading}
-                onPress={() => router.push('/auth/signup')}
+                onPress={() => router.push("/auth/signup")}
               >
-                <Text style={[styles.signupLink, { color: colors.primary }]}>Sign Up</Text>
+                <Text style={[styles.signupLink, { color: colors.primary }]}>
+                  Sign Up
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -387,6 +455,23 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700' as const,
     color: '#1E1E1E',
+  },
+  adminButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  adminButtonText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    marginBottom: 4,
+  },
+  adminButtonSubtext: {
+    fontSize: 13,
+    fontWeight: '500' as const,
   },
   divider: {
     flexDirection: 'row',

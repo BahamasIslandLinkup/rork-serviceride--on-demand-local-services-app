@@ -28,8 +28,8 @@ const COLORS = {
 
 export default function AdminLoginScreen() {
   const { login, isLoading } = useAdmin();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("admin@servicerideondemand.com");
+  const [password, setPassword] = useState("Admin123!");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLogin = async () => {
