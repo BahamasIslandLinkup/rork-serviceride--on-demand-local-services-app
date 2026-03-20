@@ -17,6 +17,12 @@ const auth = getAuth(app);
 
 const ADMIN_USERS = [
   {
+    email: 'admin@servicerideondemand.com',
+    password: 'Admin123!',
+    name: 'Super Admin',
+    role: 'super_admin',
+  },
+  {
     email: 'superadmin@islandlinkup.com',
     password: 'SuperAdmin123!',
     name: 'Super Admin',
